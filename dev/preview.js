@@ -7,7 +7,7 @@
   const source = document.getElementById('source').textContent.replace(/^\n/, '');
   const article = document.getElementById('rp-doc');
   const lines = RP.markdown.render(source, article);
-  RP.outline.create(article, article.parentElement);
+  RP.outline.create(article, { anchorTo: article.parentElement, mode: 'markdown' });
 
   const ctx = { root: article, mode: 'markdown', sourceLines: lines };
 

@@ -82,7 +82,7 @@ check('ハイライトしてもコード本文は変わらない',
   article.querySelector('pre').textContent.includes('db.insert(row)'));
 
 section('outline');
-const outline = RP.outline.create(article, article.parentElement || document.body);
+const outline = RP.outline.create(article, { anchorTo: article.parentElement, mode: 'markdown' });
 check('目次が作られる', outline !== null);
 check('見出しが列挙される',
   outline && outline.nav.querySelectorAll('.rp-outline-link').length === article.querySelectorAll('h1,h2,h3,h4').length,

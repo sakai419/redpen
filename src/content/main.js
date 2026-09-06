@@ -18,13 +18,9 @@
     document.body.textContent = '';
     document.body.className = 'rp-md-page';
     document.body.appendChild(shell);
-    // 元ページのスタイルシートが残っていると組版が混ざるので外す
-    for (const node of document.head.querySelectorAll('style, link[rel="stylesheet"]')) {
-      if (!node.href || !node.href.startsWith('chrome-extension:')) node.remove();
-    }
 
     const lines = RP.markdown.render(source, article);
-    RP.outline.create(article, shell);
+    RP.outline.create(article, { anchorTo: shell, mode: 'markdown' });
     return { root: article, sourceLines: lines };
   }
 
@@ -56,7 +52,9 @@
       ctx = buildMarkdownView(source);
       document.title = util.basename(location.href);
     } else {
-      ctx = { root: RP.detect.pickHtmlRoot(), sourceLines: null };
+      const root = RP.detect.pickHtmlRoot();
+      ctx = { root, sourceLines: null };
+      RP.outline.create(root, { mode: 'html' });
     }
 
     const key = util.docKey();

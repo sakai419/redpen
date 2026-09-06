@@ -63,6 +63,9 @@ AI が生成したレポートや設計文書をレビューし、指摘をそ�
 4. redpen の **詳細** を開き、**ファイルの URL へのアクセスを許可する** を ON
    （ローカルファイルをレビューするために必要）
 
+> ソースを更新したときは `chrome://extensions` の再読み込みボタンを押してください。
+> 開いていたタブも読み込み直しが必要です。
+
 ## 使い方
 
 ### 1. 文書を開く
@@ -80,6 +83,8 @@ Chrome は環境によってローカルの `.md` を表示せずダウンロー
 
 Markdown はこちらでレンダリングします。左に見出しの目次（現在位置つき・折りたたみ可）、
 コードブロックはシンタックスハイライトと言語ラベル付き。ライト / ダークは OS の設定に従います。
+目次は画面が狭いとき（1180px 未満）は畳んだ状態で開きますが、左端のボタンでいつでも開けます。
+一度自分で開閉すると、その状態を覚えます。HTML を読むときも同じ目次が出ます。
 
 ### 2. コメントを付ける
 
@@ -158,20 +163,32 @@ src/
 ## 開発
 
 ```bash
-npm install        # jsdom（テスト用）だけ
-npm test           # ロジック / DOM / ページ全体の 3 本
-npm run icons      # icons/*.png を再生成
-npm run theme      # src/content/hljs-theme.css を再生成
+npm install         # テスト用の jsdom と puppeteer-core だけ
+npm test            # ロジック / DOM / ページ全体の 3 本（ブラウザ不要）
+npm run test:browser # 本物の Chrome で見た目と操作を検証
+npm run shots       # 上に加えてスクリーンショットを .shots/ に保存
+npm run icons       # icons/*.png を再生成
+npm run theme       # src/content/hljs-theme.css を再生成
 ```
 
 `dev/preview.html` を Chrome で開くと、拡張として読み込まずに UI を確認できます
 （`chrome.*` はスタブ）。「サンプルコメントを入れる」でコメントが入った状態を再現できます。
 
-テストは 3 本立てです。
+テストは 4 本立てです。
 
-- `scripts/test.js` — 行番号の焼き込み、記法の除去、書き出しの内容と切り詰め
-- `scripts/test-dom.js` — jsdom 上でのアンカー生成・再解決・ハイライト挿抜・目次
-- `scripts/test-smoke.js` — `dev/preview.html` を丸ごと起動し、選択 → コメント → 保存 → 書き出しを通す
+| スクリプト | 見るもの |
+|---|---|
+| `test.js` | 行番号の焼き込み、記法の除去、書き出しの内容と切り詰め |
+| `test-dom.js` | jsdom 上でのアンカー生成・再解決・ハイライト挿抜・目次 |
+| `test-smoke.js` | `dev/preview.html` を丸ごと起動し、選択 → コメント → 保存 → 書き出しを通す |
+| `test-browser.js` | 本物の Chrome。レイアウト・CSS 変数・選択時のツールチップ位置・狭い画面での挙動 |
+
+`test-browser.js` は `examples/` を HTTP で配信し（`.md` は `text/plain`、`.html` は `text/html`）、
+content script と同じファイル一式を同じ順序で流し込みます。Chrome 137 以降は
+`--load-extension` が無効化されていて拡張として読ませられないための回避策ですが、
+ページ・CSS・レイアウトはふだん使う経路と同じものを見ています。
+jsdom はレイアウトを持たないので、`.rp-outline` の幅が変数未定義で崩れるような不具合は
+このテストでしか捕まりません。
 
 ## ライセンス
 

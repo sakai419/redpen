@@ -32,8 +32,8 @@
   --rp-radius: 10px;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: 13.5px;
+  line-height: 1.68;
   color: var(--rp-text);
   -webkit-font-smoothing: antialiased;
 }
@@ -99,8 +99,8 @@
 
 .tabs { display: flex; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--rp-border); }
 .tab {
-  border: none; background: transparent; cursor: pointer; padding: 4px 9px;
-  border-radius: 6px; font-size: 12px; color: var(--rp-text-sub); font-family: inherit;
+  border: none; background: transparent; cursor: pointer; padding: 5px 10px;
+  border-radius: 6px; font-size: 12.5px; color: var(--rp-text-sub); font-family: inherit;
 }
 .tab:hover { background: var(--rp-bg-sub); }
 .tab.active { background: var(--rp-accent-soft); color: var(--rp-accent); font-weight: 600; }
@@ -128,7 +128,7 @@
 
 .card-loc {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  font-size: 11px; color: var(--rp-text-sub); margin-bottom: 5px;
+  font-size: 11.5px; color: var(--rp-text-sub); margin-bottom: 5px;
 }
 .chip {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -141,10 +141,10 @@
 .card-quote {
   border-left: 2px solid var(--rp-quote-line);
   padding: 1px 0 1px 8px; margin: 0 0 6px;
-  color: var(--rp-text-sub); font-size: 12px;
+  color: var(--rp-text-sub); font-size: 13px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.card-body { font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+.card-body { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
 .card.resolved .card-body { text-decoration: line-through; text-decoration-color: var(--rp-text-sub); }
 
 .card-actions { display: flex; gap: 4px; margin-top: 7px; opacity: 0; transition: opacity .12s; }
@@ -160,7 +160,7 @@
 .foot-row { display: flex; gap: 6px; align-items: center; }
 .btn {
   flex: 1; border: 1px solid var(--rp-border); background: var(--rp-bg); color: var(--rp-text);
-  border-radius: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer;
+  border-radius: 7px; padding: 7px 9px; font-size: 12.5px; cursor: pointer;
   font-family: inherit; font-weight: 550;
   display: flex; align-items: center; justify-content: center; gap: 5px;
 }
@@ -188,7 +188,7 @@
   position: fixed; z-index: 2147483630;
   background: var(--rp-text); color: var(--rp-bg);
   border: none; border-radius: 6px; padding: 5px 10px;
-  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
   box-shadow: var(--rp-shadow); display: none; align-items: center; gap: 5px;
 }
 .launcher.show { display: flex; }
@@ -203,13 +203,13 @@
 .composer.show { display: block; }
 .composer-quote {
   border-left: 2px solid var(--rp-quote-line); padding-left: 7px; margin-bottom: 8px;
-  font-size: 11.5px; color: var(--rp-text-sub);
+  font-size: 12.5px; color: var(--rp-text-sub);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .composer textarea {
   width: 100%; min-height: 74px; resize: vertical;
   border: 1px solid var(--rp-border); border-radius: 6px; padding: 7px 8px;
-  font-family: inherit; font-size: 12.5px; line-height: 1.5;
+  font-family: inherit; font-size: 13.5px; line-height: 1.55;
   background: var(--rp-bg); color: var(--rp-text);
 }
 .composer textarea:focus { outline: 2px solid var(--rp-accent-soft); border-color: var(--rp-accent); }
@@ -323,10 +323,18 @@
 
     /* ---- 起動ボタン ---- */
     function showLauncher(rect) {
-      const maxLeft = window.innerWidth - 120 - (isOpen ? PANEL_WIDTH : 0);
-      el.launcher.style.top = Math.min(rect.bottom + 6, window.innerHeight - 40) + 'px';
-      el.launcher.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + 'px';
+      // 先に出してから測る（display:none のままだと寸法が取れない）
       el.launcher.classList.add('show');
+      const w = el.launcher.offsetWidth || 96;
+      const h = el.launcher.offsetHeight || 28;
+
+      // 選択範囲の上に出す。続きの本文に被らせないため。
+      let top = rect.top - h - 8;
+      if (top < 8) top = Math.min(rect.bottom + 8, window.innerHeight - h - 8);
+
+      const maxLeft = window.innerWidth - w - 12 - (isOpen ? PANEL_WIDTH : 0);
+      el.launcher.style.top = Math.max(8, top) + 'px';
+      el.launcher.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + 'px';
     }
     function hideLauncher() {
       el.launcher.classList.remove('show');

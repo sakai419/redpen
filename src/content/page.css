@@ -1,10 +1,11 @@
-/* redpen — 閲覧中の文書側に注入するスタイル（すべて rp- 接頭辞に限定）
- *
- * 変数は :root ではなく .rp-md-page / .rp-ui に閉じて宣言する。
- * 既存 HTML をレビューするときに、相手側のカスタムプロパティを汚さないため。
- */
+/* redpen — 閲覧中の文書側に注入するスタイル（すべて rp- 接頭辞に限定） */
 
-.rp-md-page {
+/* 変数は :root ではなく redpen が足した要素に閉じて宣言する。
+ * 既存 HTML をレビューするときは body に .rp-md-page が付かないので、
+ * 目次・ハイライト・案内バーにも同じ定義を届けておく。 */
+.rp-md-page,
+.rp-outline,
+mark.rp-hl {
   --rp-c-bg: #ffffff;
   --rp-c-bg-sub: #f6f8fa;
   --rp-c-bg-nav: #fafbfc;
@@ -27,10 +28,13 @@
     "Noto Sans JP", "Segoe UI", Roboto, sans-serif;
   --rp-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --rp-outline-w: 264px;
+  --rp-outline-w-collapsed: 52px;
 }
 
 @media (prefers-color-scheme: dark) {
-  .rp-md-page {
+  .rp-md-page,
+  .rp-outline,
+  mark.rp-hl {
     --rp-c-bg: #0f1216;
     --rp-c-bg-sub: #171b21;
     --rp-c-bg-nav: #12161b;
@@ -87,6 +91,7 @@ body.rp-md-page {
 }
 
 .rp-doc-shell {
+  box-sizing: border-box;
   padding: 56px 40px 200px;
   display: flex;
   justify-content: center;
@@ -97,9 +102,9 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
 
 .rp-doc {
   width: 100%;
-  max-width: 748px;
-  font-size: 15.5px;
-  line-height: 1.9;
+  max-width: 780px;
+  font-size: 17px;
+  line-height: 1.92;
   letter-spacing: 0.008em;
   word-wrap: break-word;
 }
@@ -120,13 +125,13 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
   line-height: 1.35;
 }
 .rp-doc h2 {
-  font-size: 1.42em;
+  font-size: 1.44em;
   padding-bottom: 0.4em;
   border-bottom: 1px solid var(--rp-c-border);
 }
-.rp-doc h3 { font-size: 1.14em; }
+.rp-doc h3 { font-size: 1.16em; }
 .rp-doc h4 { font-size: 1em; }
-.rp-doc h5, .rp-doc h6 { font-size: 0.94em; color: var(--rp-c-text-sub); }
+.rp-doc h5, .rp-doc h6 { font-size: 0.95em; color: var(--rp-c-text-sub); }
 
 /* 本文 */
 .rp-doc p { margin: 0 0 1.15em; }
@@ -171,8 +176,8 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
   padding: 16px 18px;
   overflow-x: auto;
   margin: 0 0 1.4em;
-  line-height: 1.7;
-  font-size: 13.5px;
+  line-height: 1.72;
+  font-size: 14.5px;
 }
 .rp-doc pre code {
   background: none;
@@ -184,10 +189,10 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
 .rp-doc pre[data-lang]::after {
   content: attr(data-lang);
   position: absolute;
-  top: 8px;
-  right: 12px;
+  top: 9px;
+  right: 13px;
   font-family: var(--rp-font-mono);
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--rp-c-text-mute);
   pointer-events: none;
   user-select: none;
@@ -199,7 +204,7 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
   border-collapse: separate;
   border-spacing: 0;
   margin: 0 0 1.4em;
-  font-size: 0.94em;
+  font-size: 0.95em;
   max-width: 100%;
   overflow-x: auto;
   display: block;
@@ -245,6 +250,7 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
 /* ---------- 目次 ---------- */
 
 .rp-outline {
+  box-sizing: border-box;
   position: fixed;
   top: 0;
   left: 0;
@@ -259,7 +265,11 @@ body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 92px; }
   z-index: 2147483500;
   transition: width 0.2s ease;
 }
-body.rp-outline-collapsed .rp-outline { width: 52px; overflow: hidden; padding: 14px 8px; }
+body.rp-outline-collapsed .rp-outline {
+  width: var(--rp-outline-w-collapsed);
+  overflow: hidden;
+  padding: 14px 8px;
+}
 
 .rp-outline-head {
   display: flex;
@@ -268,7 +278,7 @@ body.rp-outline-collapsed .rp-outline { width: 52px; overflow: hidden; padding: 
   padding: 2px 6px 10px;
 }
 .rp-outline-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--rp-c-text-mute);
@@ -308,9 +318,9 @@ body.rp-outline-collapsed .rp-outline-list { display: none; }
 
 .rp-outline-link {
   display: block;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.55;
   color: var(--rp-c-text-sub);
   text-decoration: none;
@@ -326,20 +336,23 @@ body.rp-outline-collapsed .rp-outline-list { display: none; }
   background: var(--rp-c-accent-soft);
   font-weight: 650;
 }
-.rp-outline-link.rp-lv1 { font-weight: 700; color: var(--rp-c-text); font-size: 13px; }
+.rp-outline-link.rp-lv1 { font-weight: 700; color: var(--rp-c-text); font-size: 14px; }
 .rp-outline-link.rp-lv2 { font-weight: 600; color: var(--rp-c-text); }
-.rp-outline-link.rp-lv3 { padding-left: 22px; font-size: 12px; }
-.rp-outline-link.rp-lv4 { padding-left: 34px; font-size: 12px; }
+.rp-outline-link.rp-lv3 { padding-left: 22px; font-size: 13px; }
+.rp-outline-link.rp-lv4 { padding-left: 34px; font-size: 13px; }
 
-@media (max-width: 1080px) {
-  .rp-outline { display: none; }
-  body.rp-has-outline .rp-doc-shell,
-  body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 40px; }
+/* 画面が狭いときも目次は消さない。畳んだバーを残し、
+ * 開いたときは本文を押し出さずに重ねて出す。 */
+@media (max-width: 1180px) {
+  body.rp-has-outline .rp-doc-shell { padding-left: 92px; }
+  body.rp-has-outline:not(.rp-outline-collapsed) .rp-outline {
+    box-shadow: 0 0 48px rgba(16, 24, 40, 0.2);
+  }
 }
 @media (max-width: 720px) {
   .rp-doc-shell { padding: 32px 20px 160px; }
   body.rp-has-outline .rp-doc-shell,
-  body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 20px; }
+  body.rp-has-outline.rp-outline-collapsed .rp-doc-shell { padding-left: 72px; }
 }
 
 /* ---------- 読み取り失敗時の案内 ---------- */
@@ -357,7 +370,7 @@ body.rp-outline-collapsed .rp-outline-list { display: none; }
   color: #f2f4f7;
   border-radius: 10px;
   padding: 10px 14px;
-  font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font: 13.5px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
 }
 .rp-fallback button {

@@ -20,11 +20,17 @@
     return items;
   }
 
+  /** この幅を下回ったら、目次は畳んだ状態で始める */
+  const NARROW = 1180;
+
   /**
-   * @param {HTMLElement} root  本文コンテナ
-   * @param {HTMLElement} shell root を包む要素（目次はこの前に差し込む）
+   * @param {HTMLElement} root 本文コンテナ
+   * @param {object} opts
+   *   anchorTo … 目次を差し込む基準要素（省略時は body 先頭）
+   *   mode     … 'markdown' なら page.css が余白を作る。'html' は自前で本文を寄せる
    */
-  function create(root, shell) {
+  function create(root, opts = {}) {
+    const { anchorTo = null, mode = 'markdown' } = opts;
     const items = collect(root);
     if (items.length < 2) return null;
 
@@ -66,29 +72,62 @@
       links.set(item.el, a);
     }
     nav.appendChild(list);
-    shell.parentNode.insertBefore(nav, shell);
+    if (anchorTo && anchorTo.parentNode) anchorTo.parentNode.insertBefore(nav, anchorTo);
+    else document.body.insertBefore(nav, document.body.firstChild);
     document.body.classList.add('rp-has-outline');
 
-    /* ---- 折りたたみ ---- */
+    /* ---- 折りたたみ ----
+     * Markdown ビューの余白は page.css が持つ。既存 HTML の上に出すときは
+     * こちらで本文を寄せる（相手のレイアウトに手を入れるのはこの 1 か所だけ）。 */
     const COLLAPSE_KEY = 'redpen-outline-collapsed';
-    function setCollapsed(collapsed) {
+    const WIDTH = 264;
+    const COLLAPSED_WIDTH = 52;
+
+    function setCollapsed(collapsed, remember = true) {
       document.body.classList.toggle('rp-outline-collapsed', collapsed);
-      toggle.title = collapsed ? '目次を表示' : '目次を隠す';
+      toggle.title = collapsed ? '目次を開く' : '目次を畳む';
       toggle.setAttribute('aria-label', toggle.title);
+      if (mode === 'html') {
+        document.documentElement.style.paddingLeft =
+          (collapsed ? COLLAPSED_WIDTH : WIDTH) + 'px';
+      }
+      if (!remember) return;
       try {
         localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
       } catch {
         /* file:// では localStorage が使えないことがある */
       }
     }
+
+    // 覚えている設定があればそれに従い、無ければ画面幅で決める。
+    // 自分で開閉した後は幅に関係なくその状態を守る。
+    let userDecided = false;
+    let initial = window.innerWidth < NARROW;
     try {
-      if (localStorage.getItem(COLLAPSE_KEY) === '1') setCollapsed(true);
+      const saved = localStorage.getItem(COLLAPSE_KEY);
+      if (saved === '0' || saved === '1') {
+        initial = saved === '1';
+        userDecided = true;
+      }
     } catch {
       /* 同上 */
     }
-    toggle.addEventListener('click', () =>
-      setCollapsed(!document.body.classList.contains('rp-outline-collapsed'))
-    );
+    setCollapsed(initial, false);
+
+    toggle.addEventListener('click', () => {
+      userDecided = true;
+      setCollapsed(!document.body.classList.contains('rp-outline-collapsed'));
+    });
+
+    // 窓を狭めたときに本文へ覆いかぶさらないよう、自動で畳む
+    function fitToWidth() {
+      if (userDecided) return;
+      const shouldCollapse = window.innerWidth < NARROW;
+      if (shouldCollapse !== document.body.classList.contains('rp-outline-collapsed')) {
+        setCollapsed(shouldCollapse, false);
+      }
+    }
+    window.addEventListener('resize', fitToWidth, { passive: true });
 
     /* ---- 現在位置 ---- */
     let active = null;
@@ -129,11 +168,14 @@
 
     return {
       nav,
+      setCollapsed,
       destroy() {
         window.removeEventListener('scroll', onScroll);
         window.removeEventListener('resize', onScroll);
+        window.removeEventListener('resize', fitToWidth);
         nav.remove();
         document.body.classList.remove('rp-has-outline', 'rp-outline-collapsed');
+        if (mode === 'html') document.documentElement.style.paddingLeft = '';
       }
     };
   }

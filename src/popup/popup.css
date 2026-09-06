@@ -10,8 +10,8 @@
 }
 * { box-sizing: border-box; }
 body {
-  width: 320px; margin: 0; background: var(--bg); color: var(--text);
-  font: 13px/1.65 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+  width: 340px; margin: 0; background: var(--bg); color: var(--text);
+  font: 13.5px/1.65 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

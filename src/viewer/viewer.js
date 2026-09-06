@@ -90,7 +90,7 @@
     shell.hidden = false;
     document.title = meta.title + ' — redpen';
     const lines = RP.markdown.render(source, article);
-    RP.outline.create(article, shell);
+    RP.outline.create(article, { anchorTo: shell, mode: 'markdown' });
     await RP.app.start({
       root: article,
       mode: 'markdown',

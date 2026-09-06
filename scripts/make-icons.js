@@ -83,9 +83,8 @@ function sdTaperedSegment(px, py, ax, ay, bx, by, ra, rb) {
   return Math.hypot(wx - vx * t, wy - vy * t) - r;
 }
 
-const BLUE = [37, 99, 235];    // 背景
-const WHITE = [255, 255, 255]; // ペン
-const AMBER = [250, 204, 21];  // 引いた線（コメントのハイライト色）
+const RED = [192, 57, 43];     // 背景（ツールバーで見分けやすい赤のまま）
+const WHITE = [255, 255, 255]; // ペンと引いた線
 
 /** 1 ピクセル分の色を求める（S×S のスーパーサンプリング） */
 function shade(x, y, size, S) {
@@ -101,17 +100,15 @@ function shade(x, y, size, S) {
       const bg = sdRoundedRect(u, v, 0.5, 0.5, 0.5, 0.5, 0.235);
       const bgA = bg <= 0 ? 1 : 0;
 
-      let cr = BLUE[0], cg = BLUE[1], cb = BLUE[2];
+      let cr = RED[0], cg = RED[1], cb = RED[2];
 
       // ペン軸（右上 → 左下に向かって細くなる）
       const pen = sdTaperedSegment(u, v, 0.70, 0.19, 0.355, 0.585, 0.088, 0.012);
       // 引いた線
       const rule = sdSegment(u, v, 0.235, 0.775, 0.765, 0.775) - 0.043;
 
-      if (pen <= 0) {
+      if (pen <= 0 || rule <= 0) {
         cr = WHITE[0]; cg = WHITE[1]; cb = WHITE[2];
-      } else if (rule <= 0) {
-        cr = AMBER[0]; cg = AMBER[1]; cb = AMBER[2];
       }
       if (bgA) {
         r += cr; g += cg; b += cb; a += 255;
