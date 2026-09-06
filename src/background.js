@@ -1,5 +1,6 @@
 /* redpen — service worker
- * ・ショートカット／コンテキストメニューを content script・ビューアに橋渡しする
+ * ・タブごとの有効／無効を持つ（切ったタブは storage.session に覚える）
+ * ・ショートカットとコンテキストメニューを content script・ビューアに橋渡しする
  * ・Chrome が .md を表示できずダウンロードしてしまう環境向けに、
  *   ナビゲーションを拡張内ビューアへ振り替える（既定は無効）
  * ・現在のタブの未対応コメント数をバッジに出す
@@ -8,11 +9,44 @@ importScripts(chrome.runtime.getURL('src/lib/util.js'));
 const util = globalThis.RedPen.util;
 
 const DOC_PATTERNS = ['file:///*', 'http://localhost/*', 'http://127.0.0.1/*'];
+const MENU_TOGGLE = 'rp-toggle';
+const MENU_COMMENT = 'rp-comment';
+const MENU_VIEWER = 'rp-open-viewer';
+
+/* ---------- タブごとの有効／無効 ----------
+ * 切った状態はブラウザを閉じるまで。タブを閉じたら忘れる。 */
+
+const OFF_KEY = 'disabledTabs';
+
+async function offTabs() {
+  const stored = await chrome.storage.session.get(OFF_KEY);
+  return new Set(stored[OFF_KEY] || []);
+}
+
+async function isEnabled(tabId) {
+  if (tabId == null) return true;
+  return !(await offTabs()).has(tabId);
+}
+
+async function setEnabled(tabId, enabled) {
+  if (tabId == null) return;
+  const set = await offTabs();
+  if (enabled) set.delete(tabId);
+  else set.add(tabId);
+  await chrome.storage.session.set({ [OFF_KEY]: [...set] });
+  await syncMenus(tabId);
+  await updateBadge(tabId);
+}
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const set = await offTabs();
+  if (set.delete(tabId)) await chrome.storage.session.set({ [OFF_KEY]: [...set] });
+});
 
 /* ---------- 設定 ----------
  * onBeforeNavigate はナビゲーションと競走するので、
- * ストレージを読みに行く前に判断できるようメモリに載せておく。
- */
+ * ストレージを読みに行く前に判断できるようメモリに載せておく。 */
+
 const defaultSettings = { autoOpenViewer: false };
 let settings = { ...defaultSettings };
 
@@ -26,18 +60,57 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+/* ---------- メッセージ ---------- */
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  const tabId = msg?.tabId ?? sender?.tab?.id;
+
+  if (msg?.type === 'rp-should-run') {
+    isEnabled(tabId).then((enabled) => sendResponse({ enabled }));
+    return true;
+  }
+  if (msg?.type === 'rp-get-state') {
+    isEnabled(tabId).then((enabled) => sendResponse({ enabled }));
+    return true;
+  }
+  if (msg?.type === 'rp-set-enabled') {
+    setEnabled(tabId, Boolean(msg.enabled)).then(() => {
+      // 送り主が content script 自身なら、そちらは既に自分で畳んでいる
+      if (msg.notify !== false && tabId != null) {
+        sendToTab(tabId, { type: msg.enabled ? 'rp-enable' : 'rp-disable' });
+      }
+      sendResponse({ ok: true, enabled: Boolean(msg.enabled) });
+    });
+    return true;
+  }
+  return false;
+});
+
+function sendToTab(tabId, message) {
+  chrome.tabs.sendMessage(tabId, message).catch(() => {
+    /* 対象外のページには受け手がいない */
+  });
+}
+
 /* ---------- コンテキストメニュー ---------- */
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
-      id: 'rp-comment',
+      id: MENU_TOGGLE,
+      title: 'redpen をこのタブで無効にする',
+      // 無効にした後もここから戻せるよう、対象ページなら常に出す
+      contexts: ['page', 'selection', 'frame', 'image', 'link'],
+      documentUrlPatterns: [...DOC_PATTERNS, 'chrome-extension://*/*']
+    });
+    chrome.contextMenus.create({
+      id: MENU_COMMENT,
       title: 'redpen: 選択範囲にコメントする',
       contexts: ['selection'],
       documentUrlPatterns: [...DOC_PATTERNS, 'chrome-extension://*/*']
     });
     chrome.contextMenus.create({
-      id: 'rp-open-viewer',
+      id: MENU_VIEWER,
       title: 'redpen ビューアで開く',
       contexts: ['page', 'link'],
       documentUrlPatterns: DOC_PATTERNS
@@ -45,11 +118,32 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+/** アクティブタブの状態にメニューの文言を合わせる */
+async function syncMenus(tabId) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  if (tabId != null && tab.id !== tabId) return;
+  const enabled = await isEnabled(tab.id);
+  try {
+    await chrome.contextMenus.update(MENU_TOGGLE, {
+      title: enabled ? 'redpen をこのタブで無効にする' : 'redpen をこのタブで有効にする'
+    });
+    await chrome.contextMenus.update(MENU_COMMENT, { visible: enabled });
+    await chrome.contextMenus.update(MENU_VIEWER, { visible: enabled });
+  } catch {
+    /* メニューがまだ作られていない */
+  }
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (tab?.id == null) return;
-  if (info.menuItemId === 'rp-comment') {
-    sendCommand(tab.id, 'comment-selection');
-  } else if (info.menuItemId === 'rp-open-viewer') {
+  if (info.menuItemId === MENU_TOGGLE) {
+    const enabled = await isEnabled(tab.id);
+    await setEnabled(tab.id, !enabled);
+    sendToTab(tab.id, { type: enabled ? 'rp-disable' : 'rp-enable' });
+  } else if (info.menuItemId === MENU_COMMENT) {
+    sendToTab(tab.id, { type: 'rp-command', name: 'comment-selection' });
+  } else if (info.menuItemId === MENU_VIEWER) {
     const target = info.linkUrl || info.pageUrl || tab.url;
     if (target) chrome.tabs.update(tab.id, { url: util.viewerUrl(target) });
   }
@@ -57,15 +151,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 /* ---------- キーボードショートカット ---------- */
 
-function sendCommand(tabId, name) {
-  chrome.tabs.sendMessage(tabId, { type: 'rp-command', name }).catch(() => {
-    /* 対象外のページには受け手がいない */
-  });
-}
-
 chrome.commands.onCommand.addListener(async (name) => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id != null) sendCommand(tab.id, name);
+  if (tab?.id == null) return;
+  if (!(await isEnabled(tab.id))) return;
+  sendToTab(tab.id, { type: 'rp-command', name });
 });
 
 /* ---------- .md をビューアへ振り替える ---------- */
@@ -84,19 +174,31 @@ chrome.webNavigation.onBeforeNavigate.addListener(
 /* ---------- バッジ ---------- */
 
 async function updateBadge(tabId, url) {
-  const key = util.docKeyFromTabUrl(url || '');
-  if (!key) {
-    chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {});
-    return;
+  if (tabId == null) return;
+  let target = url;
+  if (target === undefined) {
+    try {
+      target = (await chrome.tabs.get(tabId)).url;
+    } catch {
+      return;
+    }
   }
+  const key = util.docKeyFromTabUrl(target || '');
+  const show = async (text, color) => {
+    try {
+      await chrome.action.setBadgeBackgroundColor({ tabId, color });
+      await chrome.action.setBadgeText({ tabId, text });
+    } catch {
+      /* タブが既に無い */
+    }
+  };
+
+  if (!key) return void show('', '#2563eb');
+  if (!(await isEnabled(tabId))) return void show('off', '#8a8f98');
+
   const { index } = await chrome.storage.local.get('index');
   const open = index?.[key]?.open || 0;
-  try {
-    await chrome.action.setBadgeBackgroundColor({ tabId, color: '#2563eb' });
-    await chrome.action.setBadgeText({ tabId, text: open > 0 ? String(open) : '' });
-  } catch {
-    /* タブが既に無い */
-  }
+  show(open > 0 ? String(open) : '', '#2563eb');
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -104,12 +206,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    updateBadge(tabId, tab.url);
-  } catch {
-    /* タブが既に無い */
-  }
+  updateBadge(tabId);
+  syncMenus(tabId);
 });
 
 chrome.storage.onChanged.addListener(async (changes, area) => {

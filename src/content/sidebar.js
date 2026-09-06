@@ -87,7 +87,7 @@
 }
 .doc-path {
   font-size: 11px; color: var(--rp-text-sub);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .icon-btn {
   border: 1px solid transparent; background: transparent; cursor: pointer;
@@ -96,6 +96,8 @@
   font-size: 15px; line-height: 1; padding: 0; flex: none;
 }
 .icon-btn:hover { background: var(--rp-bg-sub); color: var(--rp-text); }
+.icon-btn[hidden] { display: none; }
+#offBtn:hover { background: rgba(209, 36, 47, .1); color: #d1242f; }
 
 .tabs { display: flex; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--rp-border); }
 .tab {
@@ -227,7 +229,14 @@
       <div class="doc-title" id="docTitle"></div>
       <div class="doc-path" id="docPath"></div>
     </div>
-    <button class="icon-btn" id="closeBtn" title="閉じる (Alt+R)">✕</button>
+    <button class="icon-btn" id="offBtn" title="このタブで redpen を止める">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+        <path d="M8 2.4v5.2"/>
+        <path d="M4.7 4.7a4.6 4.6 0 1 0 6.6 0"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="closeBtn" title="パネルを閉じる (Alt+R)">✕</button>
   </div>
   <div class="tabs">
     <button class="tab active" data-filter="open">未対応<span class="n" id="nOpen">0</span></button>
@@ -473,6 +482,10 @@
 
     /* ---- イベント ---- */
     shadow.getElementById('closeBtn').addEventListener('click', () => setOpen(false));
+
+    const offBtn = shadow.getElementById('offBtn');
+    offBtn.hidden = handlers.canDisable === false;
+    offBtn.addEventListener('click', () => handlers.onDisable?.());
 
     for (const tab of shadow.querySelectorAll('.tab')) {
       tab.addEventListener('click', () => {

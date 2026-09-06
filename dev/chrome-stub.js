@@ -24,11 +24,21 @@
     }
   }
 
+  // テストから service worker 発のメッセージを模擬できるようにしておく
+  globalThis.__rpDispatch = (message) => {
+    for (const fn of listeners) fn(message, {}, () => {});
+  };
+
   globalThis.chrome = {
     runtime: {
       id: 'preview',
       getURL: (p) => new URL('../' + p, location.href).href,
-      onMessage: { addListener: (fn) => listeners.push(fn) }
+      onMessage: { addListener: (fn) => listeners.push(fn) },
+      // 単体で開いているので、タブの有効・無効は常に「有効」で応答する
+      async sendMessage(msg) {
+        if (msg?.type === 'rp-should-run') return { enabled: true };
+        return { ok: true };
+      }
     },
     storage: {
       local: {

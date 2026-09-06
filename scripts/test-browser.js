@@ -168,6 +168,50 @@ async function selectLineIn(page, selector, needle) {
   check('行番号つきで書き出せる', exported.startsWith('## L30 — '), JSON.stringify(exported.slice(0, 60)));
   await shot('02-commented.png');
 
+  section('タブごとのオン・オフ');
+  const offBtn = await box(page, '#offBtn', true);
+  check('パネルに止めるボタンがある', offBtn?.visible, JSON.stringify(offBtn));
+
+  await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('offBtn').click());
+  await wait(400);
+  check('レビューパネルが消える', (await page.$('#redpen-root')) === null);
+  check('目次が消える', (await page.$('.rp-outline')) === null);
+  check('ハイライトが消える', (await page.$$eval('mark.rp-hl', (e) => e.length)) === 0);
+  check('本文が原文のテキストに戻る',
+    await page.evaluate(() => {
+      const pre = document.querySelector('body > pre');
+      return Boolean(pre && pre.textContent.includes('# 新機能'));
+    }),
+    await page.evaluate(() => document.body.innerHTML.slice(0, 120)));
+  check('本文の余白が戻る',
+    await page.evaluate(() =>
+      !document.documentElement.style.paddingRight && !document.documentElement.style.paddingLeft));
+  check('選択してもツールチップは出ない',
+    await page.evaluate(() => {
+      const pre = document.querySelector('body > pre');
+      const r = document.createRange();
+      r.setStart(pre.firstChild, 0);
+      r.setEnd(pre.firstChild, 10);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      return document.getElementById('redpen-root') === null;
+    }));
+
+  // 右クリックメニューから戻す経路（service worker からのメッセージを模擬）
+  await page.evaluate(() => window.__rpDispatch({ type: 'rp-enable' }));
+  await wait(600);
+  check('メニューから戻せる', (await page.$('#redpen-root')) !== null);
+  check('本文が再び描画される', (await page.$$eval('.rp-doc h2', (e) => e.length)) >= 4);
+  check('目次も戻る', (await box(page, '.rp-outline'))?.visible);
+  check('付けたコメントが残っている',
+    (await page.$$eval('mark.rp-hl', (e) => e.length)) > 0);
+  check('一覧にもコメントが戻る',
+    (await page.evaluate(() =>
+      document.getElementById('redpen-root').shadowRoot.querySelectorAll('.card').length)) === 1);
+
   section('狭い画面 (1024x800)');
   await page.setViewport({ width: 1024, height: 800 });
   await wait(400);
@@ -240,6 +284,17 @@ async function selectLineIn(page, selector, needle) {
     fs.mkdirSync(SHOT_DIR, { recursive: true });
     await page2.screenshot({ path: path.join(SHOT_DIR, '04-html.png') });
   }
+
+  await page2.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('offBtn').click());
+  await wait(350);
+  check('HTML でも止められる', (await page2.$('#redpen-root')) === null);
+  check('目次も消える', (await page2.$('.rp-outline')) === null);
+  check('元ページの余白が戻る',
+    await page2.evaluate(() => !document.documentElement.style.paddingLeft),
+    await page2.evaluate(() => document.documentElement.style.paddingLeft));
+  check('元ページの中身は残る',
+    await page2.evaluate(() => document.querySelector('main h1')?.textContent.includes('API')));
 
   check('最後まで例外なし', errors.length === 0 && errors2.length === 0,
     [...errors, ...errors2].join('\n').slice(0, 700));

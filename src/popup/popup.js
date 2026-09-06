@@ -35,6 +35,7 @@
 
     if (!tab?.url) {
       $('curTitle').textContent = '—';
+      $('enableRow').hidden = true;
       return;
     }
 
@@ -48,6 +49,7 @@
 
     if (!key || !(isMd || isHtml || isViewer)) {
       $('curMeta').textContent = 'このページは redpen の対象外です';
+      $('enableRow').hidden = true;
       return;
     }
 
@@ -55,6 +57,8 @@
     const open = doc ? doc.comments.filter((c) => c.status !== 'resolved').length : 0;
     const total = doc ? doc.comments.length : 0;
     $('curMeta').textContent = total > 0 ? `未対応 ${open} 件 / 全 ${total} 件` : 'コメントはまだありません';
+
+    await renderTabToggle(tab);
 
     if (total > 0) {
       const copy = button('コメントをコピー', 'primary', () => copyDoc(key));
@@ -68,6 +72,44 @@
         })
       );
     }
+  }
+
+  /** このタブで動かすかどうかのスイッチ。切ってもコメントは消えない */
+  async function renderTabToggle(tab) {
+    const row = $('enableRow');
+    const input = $('enableTab');
+    const hint = $('enableHint');
+    if (tab?.id == null) {
+      row.hidden = true;
+      return;
+    }
+
+    let enabled = true;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'rp-get-state', tabId: tab.id });
+      enabled = res?.enabled !== false;
+    } catch {
+      /* service worker が応答しないときは有効とみなす */
+    }
+
+    row.hidden = false;
+    input.checked = enabled;
+    hint.textContent = enabled
+      ? 'コメントは残したまま、いつでも止められます'
+      : 'ページを右クリックしても戻せます';
+
+    input.onchange = async () => {
+      const next = input.checked;
+      try {
+        await chrome.runtime.sendMessage({ type: 'rp-set-enabled', tabId: tab.id, enabled: next });
+      } catch {
+        /* 同上 */
+      }
+      hint.textContent = next
+        ? 'コメントは残したまま、いつでも止められます'
+        : 'ページを右クリックしても戻せます';
+      toast(next ? 'このタブで有効にしました' : 'このタブで止めました');
+    };
   }
 
   function button(label, cls, onClick) {

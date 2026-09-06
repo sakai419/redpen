@@ -13,8 +13,14 @@
    *  mode        'markdown' | 'html'
    *  sourceLines Markdown 原文の行配列（html のときは null）
    *  key/title/path  ドキュメント識別情報
+   *  outline     目次インスタンス（あれば畳むときに一緒に片づける）
+   *  canDisable  レビューパネルに「このタブで無効にする」を出すか
+   *  onDisable   無効にする直前に呼ぶ（ページの見た目を元に戻す用）
    */
   async function start(cfg) {
+    // 無効化のときにイベントをまとめて外せるようにしておく
+    const abort = new AbortController();
+    const { signal } = abort;
     const state = {
       root: cfg.root,
       mode: cfg.mode,
@@ -26,6 +32,8 @@
     };
 
     const ui = RP.sidebar.create({
+      canDisable: cfg.canDisable !== false,
+      onDisable: disable,
       onRefresh: refresh,
       onToggle: () => {},
       onSelectComment: focusComment,
@@ -265,12 +273,12 @@
       ui.showLauncher(rectOf(range));
     }, 10);
 
-    document.addEventListener('mouseup', updateLauncher);
+    document.addEventListener('mouseup', updateLauncher, { signal });
     // fixed 配置なのでスクロールすると選択範囲から離れる
-    window.addEventListener('scroll', () => ui.hideLauncher(), { passive: true });
+    window.addEventListener('scroll', () => ui.hideLauncher(), { passive: true, signal });
     document.addEventListener('keyup', (e) => {
       if (e.shiftKey || e.key.startsWith('Arrow')) updateLauncher();
-    });
+    }, { signal });
 
     document.addEventListener('mousedown', (e) => {
       const path = e.composedPath();
@@ -291,7 +299,7 @@
         const card = ui.el.list.querySelector(`.card[data-id="${CSS.escape(state.activeId)}"]`);
         card?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
       }
-    });
+    }, { signal });
 
     /* ショートカットは chrome.commands 経由でも、ページ上の keydown でも届く。
      * commands が他の拡張と衝突して割り当てられない環境でも動くよう両方受けるが、
@@ -316,13 +324,35 @@
         e.preventDefault();
         invokeCommand('toggle-sidebar');
       }
-    });
+    }, { signal });
+
+    /** UI とイベントをすべて畳む。コメント自体は保存されたまま残る */
+    function teardown() {
+      abort.abort();
+      RP.marks.removeAll(state.root);
+      cfg.outline?.destroy();
+      ui.destroy();
+      if (RP.session === session) RP.session = null;
+    }
+
+    /** このタブで redpen を止める。ページの見た目は onDisable が元に戻す */
+    function disable() {
+      teardown();
+      cfg.onDisable?.();
+      try {
+        chrome.runtime.sendMessage({ type: 'rp-set-enabled', enabled: false, notify: false });
+      } catch {
+        /* 拡張が更新された直後などは送れないことがある */
+      }
+    }
 
     const session = {
       state,
       ui,
       handleCommand: invokeCommand,
       refresh,
+      teardown,
+      disable,
       repaint: () => {
         paintAll();
         refresh();

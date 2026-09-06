@@ -7,7 +7,7 @@
   const source = document.getElementById('source').textContent.replace(/^\n/, '');
   const article = document.getElementById('rp-doc');
   const lines = RP.markdown.render(source, article);
-  RP.outline.create(article, { anchorTo: article.parentElement, mode: 'markdown' });
+  const outline = RP.outline.create(article, { anchorTo: article.parentElement, mode: 'markdown' });
 
   const ctx = { root: article, mode: 'markdown', sourceLines: lines };
 
@@ -52,6 +52,12 @@
     root: article,
     mode: 'markdown',
     sourceLines: lines,
+    outline,
+    canDisable: true,
+    onDisable: () => {
+      document.body.classList.remove('rp-md-page');
+      document.documentElement.style.paddingRight = '';
+    },
     key: KEY,
     title: 'sample-report.md',
     path: '/Users/example/reports/sample-report.md'

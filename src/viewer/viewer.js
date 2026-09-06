@@ -90,11 +90,14 @@
     shell.hidden = false;
     document.title = meta.title + ' — redpen';
     const lines = RP.markdown.render(source, article);
-    RP.outline.create(article, { anchorTo: shell, mode: 'markdown' });
+    const outline = RP.outline.create(article, { anchorTo: shell, mode: 'markdown' });
     await RP.app.start({
       root: article,
       mode: 'markdown',
       sourceLines: lines,
+      outline,
+      // このページは redpen 専用なので、止める先がない
+      canDisable: false,
       key: meta.key,
       title: meta.title,
       path: meta.path
