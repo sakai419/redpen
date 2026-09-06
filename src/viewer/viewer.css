@@ -1,0 +1,60 @@
+/* redpen — 拡張内ビューア専用のスタイル */
+html, body { min-height: 100%; }
+body { margin: 0; }
+
+.rp-drop {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 24px;
+}
+.rp-drop.dragover .rp-drop-inner { border-color: #2563eb; background: rgba(37,99,235,.04); }
+.rp-drop-inner {
+  width: 100%; max-width: 520px; text-align: center;
+  border: 1.5px dashed #d5d9de; border-radius: 14px;
+  padding: 40px 32px; background: #fff;
+  transition: border-color .15s, background .15s;
+}
+.rp-drop-brand {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 650; color: #2563eb; letter-spacing: .02em;
+}
+.rp-drop-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; }
+.rp-drop h1 { font-size: 19px; margin: 12px 0 6px; font-weight: 650; }
+.rp-drop p { margin: 0 0 20px; color: #59636e; font-size: 13.5px; line-height: 1.7; }
+.rp-drop-actions { display: flex; gap: 8px; justify-content: center; }
+.rp-drop-btn {
+  border: 1px solid #e6e8eb; background: #fff; color: #1f2328;
+  border-radius: 8px; padding: 8px 18px; font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.rp-drop-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.rp-drop-btn.primary:hover { filter: brightness(1.08); }
+.rp-drop-note {
+  margin-top: 16px; font-size: 12px; line-height: 1.7; color: #868f99;
+}
+.rp-drop-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f6f8fa; border: 1px solid #e6e8eb; border-radius: 4px; padding: 1px 5px; font-size: 11px;
+}
+.rp-recent { margin-top: 26px; text-align: left; border-top: 1px solid #e6e8eb; padding-top: 16px; }
+.rp-recent-title { font-size: 11px; font-weight: 650; color: #868f99; letter-spacing: .04em; margin-bottom: 8px; }
+.rp-recent ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.rp-recent a {
+  display: flex; align-items: baseline; gap: 8px; text-decoration: none;
+  color: #1f2328; font-size: 13px; padding: 6px 8px; border-radius: 6px;
+}
+.rp-recent a:hover { background: #f6f8fa; }
+.rp-recent .name { font-weight: 550; }
+.rp-recent .meta { font-size: 11px; color: #868f99; margin-left: auto; white-space: nowrap; }
+
+@media (prefers-color-scheme: dark) {
+  .rp-drop-inner { background: #0f1216; border-color: #262c34; }
+  .rp-drop p { color: #9aa5b1; }
+  .rp-drop-btn { background: #0f1216; border-color: #262c34; color: #e3e8ee; }
+  .rp-drop-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .rp-drop-note { color: #6e7a87; }
+  .rp-drop-note code { background: #171b21; border-color: #262c34; }
+  .rp-recent { border-top-color: #262c34; }
+  .rp-recent a { color: #e3e8ee; }
+  .rp-recent a:hover { background: #171b21; }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "redpen",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ローカルの Markdown / HTML を読んで、選択箇所にコメントを付け、引用とコメントだけの Markdown として書き出す Chrome 拡張",
+  "scripts": {
+    "test": "node scripts/test.js && node scripts/test-dom.js && node scripts/test-smoke.js",
+    "icons": "node scripts/make-icons.js",
+    "theme": "node scripts/make-hljs-theme.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

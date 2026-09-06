@@ -1,0 +1,88 @@
+{
+  "manifest_version": 3,
+  "name": "redpen — 赤入れレビュー",
+  "version": "0.1.0",
+  "description": "ローカルの Markdown / HTML を開いて選択箇所にコメントを付け、引用とコメントだけの Markdown として書き出す。",
+  "minimum_chrome_version": "114",
+
+  "permissions": ["storage", "contextMenus", "webNavigation"],
+
+  "host_permissions": [
+    "file:///*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background.js"
+  },
+
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "redpen",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "file:///*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "include_globs": [
+        "*.md",
+        "*.md?*",
+        "*.markdown",
+        "*.markdown?*",
+        "*.mdown",
+        "*.html",
+        "*.html?*",
+        "*.htm",
+        "*.htm?*"
+      ],
+      "js": [
+        "src/vendor/markdown-it.min.js",
+        "src/vendor/purify.min.js",
+        "src/vendor/highlight.min.js",
+        "src/lib/util.js",
+        "src/lib/store.js",
+        "src/lib/exporter.js",
+        "src/content/detect.js",
+        "src/content/markdown.js",
+        "src/content/outline.js",
+        "src/content/anchor.js",
+        "src/content/marks.js",
+        "src/content/sidebar.js",
+        "src/content/app.js",
+        "src/content/main.js"
+      ],
+      "css": ["src/content/page.css", "src/content/hljs-theme.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+
+  "commands": {
+    "toggle-sidebar": {
+      "suggested_key": { "default": "Alt+R", "mac": "Alt+R" },
+      "description": "レビューパネルの開閉"
+    },
+    "comment-selection": {
+      "suggested_key": { "default": "Alt+C", "mac": "Alt+C" },
+      "description": "選択範囲にコメントを付ける"
+    }
+  }
+}

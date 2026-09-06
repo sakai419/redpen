@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>redpen</title>
+  <link rel="stylesheet" href="../content/page.css">
+  <link rel="stylesheet" href="../content/hljs-theme.css">
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body class="rp-md-page">
+  <div id="dropzone" class="rp-drop" hidden>
+    <div class="rp-drop-inner">
+      <div class="rp-drop-brand"><span class="rp-drop-dot"></span>redpen</div>
+      <h1>レビューする文書を開く</h1>
+      <p id="dropMessage">Markdown ファイルをここにドロップするか、下のボタンから選んでください。</p>
+      <div class="rp-drop-actions">
+        <button type="button" id="pickBtn" class="rp-drop-btn primary">ファイルを選ぶ</button>
+      </div>
+      <input type="file" id="fileInput" accept=".md,.markdown,.mdown,.mkd,.txt" hidden>
+      <div class="rp-drop-note" id="dropNote"></div>
+      <div class="rp-recent" id="recent" hidden>
+        <div class="rp-recent-title">コメントのある文書</div>
+        <ul id="recentList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="rp-doc-shell" id="shell" hidden>
+    <article class="rp-doc" id="rp-doc"></article>
+  </div>
+
+  <script src="../vendor/markdown-it.min.js"></script>
+  <script src="../vendor/purify.min.js"></script>
+  <script src="../vendor/highlight.min.js"></script>
+  <script src="../lib/util.js"></script>
+  <script src="../lib/store.js"></script>
+  <script src="../lib/exporter.js"></script>
+  <script src="../content/detect.js"></script>
+  <script src="../content/markdown.js"></script>
+  <script src="../content/outline.js"></script>
+  <script src="../content/anchor.js"></script>
+  <script src="../content/marks.js"></script>
+  <script src="../content/sidebar.js"></script>
+  <script src="../content/app.js"></script>
+  <script src="viewer.js"></script>
+</body>
+</html>

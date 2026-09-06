@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <div class="brand"><span class="dot"></span>redpen</div>
+  </header>
+
+  <section class="current" id="current">
+    <div class="current-title" id="curTitle">—</div>
+    <div class="current-meta" id="curMeta"></div>
+    <div class="row" id="curActions"></div>
+  </section>
+
+  <section class="docs">
+    <div class="section-title">コメントのある文書</div>
+    <ul class="doclist" id="docList"></ul>
+    <div class="empty" id="docEmpty" hidden>まだコメントはありません。</div>
+  </section>
+
+  <section class="settings">
+    <label class="switch">
+      <input type="checkbox" id="autoViewer">
+      <span>
+        <strong>.md を redpen ビューアで開く</strong>
+        <em>Chrome が Markdown をダウンロードしてしまう場合に ON にしてください。</em>
+      </span>
+    </label>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../lib/util.js"></script>
+  <script src="../lib/store.js"></script>
+  <script src="../lib/exporter.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

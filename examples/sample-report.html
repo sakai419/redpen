@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>サンプル HTML レポート</title>
+  <style>
+    body { font-family: -apple-system, "Hiragino Sans", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.9; }
+    h1 { border-bottom: 1px solid #ddd; padding-bottom: .3em; }
+    code { background: #f3f3f1; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>API レート制限の設計方針</h1>
+    <h2>1. 背景</h2>
+    <p>現在の API は無制限にリクエストを受け付けており、特定のクライアントによる集中的な呼び出しで全体のレスポンスが劣化する事象が発生している。</p>
+    <h2>2. 方針</h2>
+    <p>トークンバケット方式を採用し、API キーごとに毎分 600 リクエストを上限とする。上限を超えた場合は <code>429 Too Many Requests</code> を返す。</p>
+    <h2>3. 留意点</h2>
+    <p>レート制限のカウンタはアプリケーションのメモリ上に保持する。サーバーを増やしても問題なく動作する。</p>
+  </main>
+</body>
+</html>

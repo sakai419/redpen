@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>redpen プレビュー</title>
+  <link rel="stylesheet" href="../src/content/page.css">
+  <link rel="stylesheet" href="../src/content/hljs-theme.css">
+  <style>
+    .dev-note {
+      position: fixed; left: 10px; bottom: 10px; z-index: 10;
+      background: #1c1c1a; color: #f5f5f2; border-radius: 6px; padding: 6px 10px;
+      font: 11px/1.5 -apple-system, "Hiragino Sans", sans-serif; opacity: .85;
+    }
+    .dev-note button { font: inherit; margin-left: 6px; cursor: pointer; border-radius: 4px; border: none; padding: 2px 6px; }
+  </style>
+</head>
+<body class="rp-md-page">
+  <div class="rp-doc-shell"><article class="rp-doc" id="rp-doc"></article></div>
+  <div class="dev-note">
+    dev preview（拡張として読み込まずに UI を確認する用）
+    <button id="seed">サンプルコメントを入れる</button>
+    <button id="reset">保存を消す</button>
+  </div>
+
+  <script type="text/markdown" id="source">
+# 新機能「一括インポート」導入検討レポート
+
+作成: 分析エージェント / 2026-09-05
+
+## 1. 概要
+
+本レポートは、CSV による一括インポート機能を追加すべきかを検討したものである。
+既存顧客からの要望が多く、導入により初期セットアップの所要時間を大幅に短縮できる。
+
+## 2. 現状の課題
+
+- 新規顧客のデータ移行は 1 件ずつ手入力しており、平均 4.5 時間かかっている
+- 手入力に起因する入力ミスが月あたり 12 件報告されている
+- サポート工数の 3 割がデータ移行の問い合わせに費やされている
+
+## 3. 提案する仕様
+
+### 3.1 対応フォーマット
+
+CSV（UTF-8, カンマ区切り）のみを対象とする。Excel 形式は将来的な拡張とする。
+
+| 項目 | 必須 | 型 | 備考 |
+|---|---|---|---|
+| 顧客名 | ○ | 文字列 | 255 文字まで |
+| メールアドレス | ○ | 文字列 | 重複チェックあり |
+| 契約開始日 | | 日付 | `YYYY-MM-DD` |
+
+### 3.2 前提条件
+
+本システムは常時オンラインであることを前提とする。インポート処理は同期的に実行し、
+完了までブラウザを閉じないようユーザーに案内する。
+
+```python
+def import_rows(rows):
+    for row in rows:
+        db.insert(row)   # エラー時のロールバックは考慮しない
+```
+
+## 4. 期待効果
+
+導入により、データ移行にかかる工数は 3 分の 1 になる。年間で約 1,200 万円のコスト削減が見込まれる。
+
+## 5. まとめ
+
+早期の実装を推奨する。開発期間は 2 週間程度と見積もる。
+  </script>
+
+  <script src="chrome-stub.js"></script>
+  <script src="../src/vendor/markdown-it.min.js"></script>
+  <script src="../src/vendor/purify.min.js"></script>
+  <script src="../src/vendor/highlight.min.js"></script>
+  <script src="../src/lib/util.js"></script>
+  <script src="../src/lib/store.js"></script>
+  <script src="../src/lib/exporter.js"></script>
+  <script src="../src/content/detect.js"></script>
+  <script src="../src/content/markdown.js"></script>
+  <script src="../src/content/outline.js"></script>
+  <script src="../src/content/anchor.js"></script>
+  <script src="../src/content/marks.js"></script>
+  <script src="../src/content/sidebar.js"></script>
+  <script src="../src/content/app.js"></script>
+  <script src="preview.js"></script>
+</body>
+</html>
