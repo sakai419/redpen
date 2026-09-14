@@ -4,7 +4,7 @@
   "private": true,
   "description": "ローカルの Markdown / HTML を読んで、選択箇所にコメントを付け、引用とコメントだけの Markdown として書き出す Chrome 拡張",
   "scripts": {
-    "test": "node scripts/test.js && node scripts/test-dom.js && node scripts/test-smoke.js",
+    "test": "node scripts/test.js && node scripts/test-dom.js && node scripts/test-html.js && node scripts/test-smoke.js",
     "test:browser": "node scripts/test-browser.js",
     "shots": "node scripts/test-browser.js --shot",
     "icons": "node scripts/make-icons.js",

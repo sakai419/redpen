@@ -73,6 +73,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     isEnabled(tabId).then((enabled) => sendResponse({ enabled }));
     return true;
   }
+  if (msg?.type === 'rp-fetch-source') {
+    // HTML の原文行番号を出すために、content script の代わりに原文を読む。
+    // file:// は content script から直接 fetch できないため。
+    fetchSource(msg.url, sender)
+      .then((text) => sendResponse({ ok: true, text }))
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
   if (msg?.type === 'rp-set-enabled') {
     setEnabled(tabId, Boolean(msg.enabled)).then(() => {
       // 送り主が content script 自身なら、そちらは既に自分で畳んでいる
@@ -85,6 +93,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   return false;
 });
+
+/* ---------- 原文の読み直し ----------
+ * 読むのは依頼元のタブが今開いているページそのものだけ。
+ * 任意の URL を取りに行く踏み台にならないよう、送り主と突き合わせる。 */
+
+const FETCHABLE = ['file:', 'http:', 'https:'];
+
+function sameDocument(a, b) {
+  try {
+    const x = new URL(a);
+    const y = new URL(b);
+    x.hash = '';
+    y.hash = '';
+    return x.href === y.href;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchSource(url, sender) {
+  if (!url || !FETCHABLE.includes(new URL(url).protocol)) {
+    throw new Error('対象外の URL です');
+  }
+  const senderUrl = sender?.tab?.url || sender?.url;
+  if (senderUrl && !sameDocument(url, senderUrl)) {
+    throw new Error('開いているページと一致しません');
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.text();
+}
 
 function sendToTab(tabId, message) {
   chrome.tabs.sendMessage(tabId, message).catch(() => {

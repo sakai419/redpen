@@ -26,6 +26,7 @@ const JS_FILES = [
   'src/lib/exporter.js',
   'src/content/detect.js',
   'src/content/markdown.js',
+  'src/content/htmlsource.js',
   'src/content/outline.js',
   'src/content/anchor.js',
   'src/content/marks.js',
@@ -307,9 +308,31 @@ async function selectLineIn(page, selector, needle) {
       if (!nav || !main) return false;
       return main.getBoundingClientRect().x >= nav.getBoundingClientRect().width;
     }));
+  check('HTML でも原文の行番号が焼き込まれる',
+    (await page2.$$eval('main [data-rp-line]', (e) => e.length)) > 5);
+
   await selectLineIn(page2, 'main p', 'レート制限のカウンタ');
   const launcher2 = await box(page2, '#launcher', true);
   check('HTML でもツールチップが出る', launcher2?.visible, JSON.stringify(launcher2));
+
+  // 選択したまま入力欄を開き、行番号付きで書き出せるところまで確かめる
+  await page2.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('launcher').click());
+  await wait(250);
+  await page2.evaluate(() => {
+    const sr = document.getElementById('redpen-root').shadowRoot;
+    sr.getElementById('composerInput').value = 'カウンタの持ち方を再検討してください。';
+    sr.getElementById('composerSave').click();
+  });
+  await wait(350);
+  const htmlExport = await page2.evaluate(() =>
+    window.RedPen.exporter.build(window.RedPen.session.state.doc, { style: 'compact' }));
+  const wantLine = await page2.evaluate(async () => {
+    const src = await (await fetch(location.href)).text();
+    return src.split(/\r\n?|\n/).findIndex((l) => l.includes('レート制限のカウンタ')) + 1;
+  });
+  check('書き出しに原文の行番号が入る', htmlExport.includes(`L${wantLine}`),
+    `${htmlExport.trim()} / 原文 L${wantLine}`);
   if (WANT_SHOTS) {
     fs.mkdirSync(SHOT_DIR, { recursive: true });
     await page2.screenshot({ path: path.join(SHOT_DIR, '04-html.png') });

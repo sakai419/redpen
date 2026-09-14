@@ -62,6 +62,7 @@
         "src/lib/exporter.js",
         "src/content/detect.js",
         "src/content/markdown.js",
+        "src/content/htmlsource.js",
         "src/content/outline.js",
         "src/content/anchor.js",
         "src/content/marks.js",

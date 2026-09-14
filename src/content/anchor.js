@@ -221,7 +221,13 @@
 
     let startLine = null;
     let endLine = null;
-    if (startBlock) {
+    if (ctx.mode === 'html') {
+      const lines = RP.htmlsource?.linesFor(range, ctx);
+      if (lines) {
+        startLine = lines.start;
+        endLine = lines.end;
+      }
+    } else if (startBlock) {
       const refined = refineLines(startBlock, quote, sourceLines);
       if (refined) {
         startLine = refined.start;

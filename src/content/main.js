@@ -89,7 +89,9 @@
       document.title = util.basename(location.href);
     } else {
       const root = RP.detect.pickHtmlRoot();
-      ctx = { root, sourceLines: null, outline: RP.outline.create(root, { mode: 'html' }) };
+      // 目次などで DOM をいじる前に、原文の行番号を焼き込む
+      const sourceLines = await RP.htmlsource.load();
+      ctx = { root, sourceLines, outline: RP.outline.create(root, { mode: 'html' }) };
     }
 
     const key = util.docKey();

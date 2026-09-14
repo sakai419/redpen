@@ -37,6 +37,16 @@
       // 単体で開いているので、タブの有効・無効は常に「有効」で応答する
       async sendMessage(msg) {
         if (msg?.type === 'rp-should-run') return { enabled: true };
+        // 拡張なら service worker が代わりに読む。ここでは自分で取りに行く
+        if (msg?.type === 'rp-fetch-source') {
+          try {
+            const res = await fetch(msg.url);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return { ok: true, text: await res.text() };
+          } catch (err) {
+            return { ok: false, error: String(err?.message || err) };
+          }
+        }
         return { ok: true };
       }
     },
