@@ -110,6 +110,30 @@ virtualConsole.on('error', (...args) => errors.push(args.join(' ')));
       '## L30 — 3. 提案する仕様 > 3.2 前提条件\n\n> 本システムは常時オンラインであることを前提とする。\n\nオフライン時の挙動が未定義です。\n',
     JSON.stringify(RP.exporter.build(savedDoc, {})));
 
+  console.log('\nコメントを一括で削除する');
+  const clearBtn = shadow.getElementById('clearBtn');
+  check('件数があるとボタンが出る', clearBtn && !clearBtn.hidden);
+
+  clearBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 60));
+  check('1 回目は確認になる', clearBtn.textContent === '本当に全件削除？', clearBtn.textContent);
+  check('1 回目では消えない', shadow.querySelectorAll('.list .card').length === 1);
+
+  clearBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 200));
+  check('一覧が空になる', shadow.querySelectorAll('.list .card').length === 0);
+  check('本文のハイライトも消える', article.querySelector('mark.rp-hl') === null);
+  check('件数の表示が 0 に戻る', shadow.getElementById('nAll').textContent === '0');
+  check('ボタンが引っ込む', clearBtn.hidden);
+  check('ラベルが元に戻る', clearBtn.textContent === '全件削除', clearBtn.textContent);
+
+  const after = await window.chrome.storage.local.get(
+    'doc:file:///Users/example/reports/sample-report.md');
+  check('保存からも消える',
+    after['doc:file:///Users/example/reports/sample-report.md'] === undefined,
+    JSON.stringify(after).slice(0, 120));
+  check('文書一覧からも外れる', (await RP.store.listDocs()).length === 0);
+
   console.log(`\n${passed} passed, ${failed} failed\n`);
   window.close();
   process.exit(failed === 0 ? 0 : 1);

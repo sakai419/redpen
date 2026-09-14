@@ -237,6 +237,36 @@ async function selectLineIn(page, selector, needle) {
   await wait(300);
   await shot('03-narrow.png');
 
+  section('コメントの一括削除');
+  await page.setViewport({ width: 1440, height: 900 });
+  await wait(300);
+  const clearBtn = await box(page, '#clearBtn', true);
+  check('全件削除ボタンが出る', clearBtn?.visible, JSON.stringify(clearBtn));
+
+  const clearLabel = await page.evaluate(() => {
+    const s = document.getElementById('redpen-root').shadowRoot;
+    s.getElementById('clearBtn').click();
+    return s.getElementById('clearBtn').textContent;
+  });
+  await wait(200);
+  check('1 回目は確認になる', clearLabel === '本当に全件削除？', JSON.stringify(clearLabel));
+  check('1 回目では消えない',
+    (await page.evaluate(() =>
+      document.getElementById('redpen-root').shadowRoot.querySelectorAll('.card').length)) === 1);
+
+  await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('clearBtn').click());
+  await wait(400);
+  check('一覧が空になる',
+    (await page.evaluate(() =>
+      document.getElementById('redpen-root').shadowRoot.querySelectorAll('.card').length)) === 0);
+  check('本文のハイライトも消える', (await page.$$eval('mark.rp-hl', (e) => e.length)) === 0);
+  check('ボタンが引っ込む', !(await box(page, '#clearBtn', true))?.visible);
+  check('保存からも消える',
+    (await page.evaluate(async () => (await window.RedPen.store.listDocs()).length)) === 0);
+  await page.setViewport({ width: 1024, height: 800 });
+  await wait(200);
+
   /* ================= HTML ================= */
   await page.setViewport({ width: 1440, height: 900 });
   const page2 = await browser.newPage();

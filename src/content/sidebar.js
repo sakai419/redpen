@@ -99,7 +99,12 @@
 .icon-btn[hidden] { display: none; }
 #offBtn:hover { background: rgba(209, 36, 47, .1); color: #d1242f; }
 
-.tabs { display: flex; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--rp-border); }
+.tabs {
+  display: flex; align-items: center; gap: 2px;
+  padding: 8px 10px; border-bottom: 1px solid var(--rp-border);
+}
+.tabs .clear { margin-left: auto; flex: none; }
+.tabs .clear[data-confirm="1"] { color: #d1242f; border-color: #d1242f; }
 .tab {
   border: none; background: transparent; cursor: pointer; padding: 5px 10px;
   border-radius: 6px; font-size: 12.5px; color: var(--rp-text-sub); font-family: inherit;
@@ -242,6 +247,8 @@
     <button class="tab active" data-filter="open">未対応<span class="n" id="nOpen">0</span></button>
     <button class="tab" data-filter="resolved">対応済み<span class="n" id="nResolved">0</span></button>
     <button class="tab" data-filter="all">すべて<span class="n" id="nAll">0</span></button>
+    <button class="mini danger clear" id="clearBtn"
+            title="この文書のコメントをすべて削除" hidden>全件削除</button>
   </div>
   <div class="list" id="list"></div>
   <div class="foot">
@@ -304,7 +311,8 @@
       composerInput: $('composerInput'),
       toast: $('toast'),
       optResolved: $('optResolved'),
-      optStyle: $('optStyle')
+      optStyle: $('optStyle'),
+      clearBtn: $('clearBtn')
     };
 
     let filter = 'open';
@@ -384,6 +392,21 @@
       handlers.onSubmitComment?.(ctx, body);
     }
 
+    /* ---- 全件削除（押し間違いを防ぐため 2 段） ---- */
+    let clearTimer = null;
+    function resetClear() {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+      el.clearBtn.dataset.confirm = '';
+      el.clearBtn.textContent = '全件削除';
+    }
+    function armClear() {
+      el.clearBtn.dataset.confirm = '1';
+      el.clearBtn.textContent = '本当に全件削除？';
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(resetClear, 3000);
+    }
+
     /* ---- 一覧描画 ---- */
     function render(state) {
       el.docTitle.textContent = state.title;
@@ -396,6 +419,9 @@
       el.nOpen.textContent = open.length;
       el.nResolved.textContent = resolved.length;
       el.nAll.textContent = all.length;
+
+      el.clearBtn.hidden = all.length === 0;
+      if (el.clearBtn.hidden && clearTimer) resetClear();
 
       const shown = filter === 'open' ? open : filter === 'resolved' ? resolved : all;
       el.list.textContent = '';
@@ -486,6 +512,15 @@
     const offBtn = shadow.getElementById('offBtn');
     offBtn.hidden = handlers.canDisable === false;
     offBtn.addEventListener('click', () => handlers.onDisable?.());
+
+    el.clearBtn.addEventListener('click', () => {
+      if (el.clearBtn.dataset.confirm !== '1') {
+        armClear();
+        return;
+      }
+      resetClear();
+      handlers.onDeleteAll?.();
+    });
 
     for (const tab of shadow.querySelectorAll('.tab')) {
       tab.addEventListener('click', () => {

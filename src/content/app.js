@@ -11,7 +11,7 @@
    * @param {object} cfg
    *  root        アノテーション対象のコンテナ要素
    *  mode        'markdown' | 'html'
-   *  sourceLines Markdown 原文の行配列（html のときは null）
+   *  sourceLines 原文の行配列（html は読み直せなかったとき null）
    *  key/title/path  ドキュメント識別情報
    *  outline     目次インスタンス（あれば畳むときに一緒に片づける）
    *  canDisable  レビューパネルに「このタブで無効にする」を出すか
@@ -39,6 +39,7 @@
       onSelectComment: focusComment,
       onToggleResolved: toggleResolved,
       onDelete: deleteComment,
+      onDeleteAll: deleteAllComments,
       onEdit: editComment,
       onLauncherClick: openComposerForSelection,
       onCancelComment: () => {
@@ -75,6 +76,17 @@
           changed = true;
         }
         if (range) {
+          // HTML は原文を読み直せたときだけ行番号が付く。
+          // 付けられなかった頃のコメントや、原文が編集された場合はここで直す。
+          // ハイライトを入れると Range が指すテキストノードが分かれるので、その前に数える
+          if (state.mode === 'html' && state.sourceLines) {
+            const lines = RP.htmlsource.linesFor(range, state);
+            if (lines && (c.anchor.startLine !== lines.start || c.anchor.endLine !== lines.end)) {
+              c.anchor.startLine = lines.start;
+              c.anchor.endLine = lines.end;
+              changed = true;
+            }
+          }
           RP.marks.apply(state.root, range, c.id, { resolved: c.status === 'resolved' });
         }
       }
@@ -206,6 +218,18 @@
       if (state.activeId === id) state.activeId = null;
       await persist();
       ui.toast('コメントを削除しました');
+    }
+
+    async function deleteAllComments() {
+      const n = state.doc.comments.length;
+      if (n === 0) return;
+      state.doc.comments = [];
+      RP.marks.removeAll(state.root);
+      state.activeId = null;
+      state.editingId = null;
+      ui.hideComposer();
+      await persist();
+      ui.toast(`コメントを ${n} 件削除しました`);
     }
 
     /* ---------- エクスポート ---------- */
