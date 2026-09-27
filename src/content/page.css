@@ -22,8 +22,6 @@ mark.rp-hl {
   --rp-c-mark-hover: rgba(250, 204, 21, 0.58);
   --rp-c-mark-active: rgba(250, 204, 21, 0.78);
   --rp-c-mark-line: rgba(180, 120, 10, 0.5);
-  --rp-c-mark-done: rgba(140, 149, 159, 0.2);
-  --rp-c-mark-done-line: rgba(140, 149, 159, 0.45);
   --rp-font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", "Segoe UI", Roboto, sans-serif;
   --rp-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -51,8 +49,6 @@ mark.rp-hl {
     --rp-c-mark-hover: rgba(250, 204, 21, 0.4);
     --rp-c-mark-active: rgba(250, 204, 21, 0.55);
     --rp-c-mark-line: rgba(250, 204, 21, 0.5);
-    --rp-c-mark-done: rgba(140, 149, 159, 0.18);
-    --rp-c-mark-done-line: rgba(140, 149, 159, 0.4);
   }
 }
 
@@ -69,10 +65,6 @@ mark.rp-hl {
 }
 mark.rp-hl:hover { background: var(--rp-c-mark-hover, rgba(250, 204, 21, 0.58)); }
 mark.rp-hl.rp-hl-active { background: var(--rp-c-mark-active, rgba(250, 204, 21, 0.78)); }
-mark.rp-hl.rp-hl-resolved {
-  background: var(--rp-c-mark-done, rgba(140, 149, 159, 0.2));
-  border-bottom-color: var(--rp-c-mark-done-line, rgba(140, 149, 159, 0.45));
-}
 @keyframes rp-flash {
   0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
   35% { box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.45); }

@@ -3,7 +3,7 @@
  * ・ショートカットとコンテキストメニューを content script・ビューアに橋渡しする
  * ・Chrome が .md を表示できずダウンロードしてしまう環境向けに、
  *   ナビゲーションを拡張内ビューアへ振り替える（既定は無効）
- * ・現在のタブの未対応コメント数をバッジに出す
+ * ・現在のタブのコメント数をバッジに出す
  */
 importScripts(chrome.runtime.getURL('src/lib/util.js'));
 const util = globalThis.RedPen.util;
@@ -236,8 +236,8 @@ async function updateBadge(tabId, url) {
   if (!(await isEnabled(tabId))) return void show('off', '#8a8f98');
 
   const { index } = await chrome.storage.local.get('index');
-  const open = index?.[key]?.open || 0;
-  show(open > 0 ? String(open) : '', '#2563eb');
+  const total = index?.[key]?.total || 0;
+  show(total > 0 ? String(total) : '', '#2563eb');
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

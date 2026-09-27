@@ -80,10 +80,6 @@
     "toggle-sidebar": {
       "suggested_key": { "default": "Alt+R", "mac": "Alt+R" },
       "description": "レビューパネルの開閉"
-    },
-    "comment-selection": {
-      "suggested_key": { "default": "Alt+C", "mac": "Alt+C" },
-      "description": "選択範囲にコメントを付ける"
     }
   }
 }

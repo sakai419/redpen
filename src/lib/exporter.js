@@ -13,6 +13,14 @@
   /** 引用は位置を特定できる長さで足りる。これを超えたら中略する */
   const QUOTE_MAX = 40;
 
+  /** 範囲を選ばずに付けた、文書全体へのコメントの位置表記 */
+  const DOCUMENT_LABEL = '文書全体';
+
+  /** アンカーを持たないコメントは文書全体に対するもの */
+  function isDocumentComment(c) {
+    return !c.anchor;
+  }
+
   /** アンカーを "L42-L45" / "L42" / "" に整形する */
   function lineLabel(anchor) {
     if (!anchor || anchor.startLine == null) return '';
@@ -30,6 +38,7 @@
 
   /** 行番号と見出しを併記した位置表記 */
   function locationLabel(anchor) {
+    if (!anchor) return DOCUMENT_LABEL;
     const line = lineLabel(anchor);
     const heading = headingLabel(anchor);
     if (line && heading) return `${line} — ${heading}`;
@@ -51,8 +60,12 @@
     return head.trimEnd() + ' …';
   }
 
+  /** 文書全体へのコメントを先頭に、残りは原文での出現順に並べる */
   function sortComments(comments) {
     return comments.slice().sort((a, b) => {
+      const ad = isDocumentComment(a);
+      if (ad !== isDocumentComment(b)) return ad ? -1 : 1;
+      if (ad) return a.createdAt - b.createdAt;
       const al = a.anchor?.startLine ?? Number.MAX_SAFE_INTEGER;
       const bl = b.anchor?.startLine ?? Number.MAX_SAFE_INTEGER;
       if (al !== bl) return al - bl;
@@ -94,12 +107,12 @@
     return (
       JSON.stringify(
         comments.map((c) => ({
+          scope: isDocumentComment(c) ? 'document' : 'selection',
           startLine: c.anchor?.startLine ?? null,
           endLine: c.anchor?.endLine ?? null,
           headingPath: c.anchor?.headingPath || [],
           quote: c.anchor?.quote || '',
-          comment: c.body,
-          status: c.status || 'open'
+          comment: c.body
         })),
         null,
         2
@@ -109,13 +122,11 @@
 
   /**
    * @param {object} doc  store の doc オブジェクト
-   * @param {object} opts { style: 'quote'|'compact'|'json', includeResolved }
+   * @param {object} opts { style: 'quote'|'compact'|'json' }
    */
   function build(doc, opts = {}) {
-    const o = { style: 'quote', includeResolved: false, ...opts };
-    let comments = doc.comments || [];
-    if (!o.includeResolved) comments = comments.filter((c) => c.status !== 'resolved');
-    comments = sortComments(comments);
+    const o = { style: 'quote', ...opts };
+    const comments = sortComments(doc.comments || []);
 
     if (comments.length === 0) return '';
     if (o.style === 'json') return renderJson(comments);
@@ -123,13 +134,8 @@
     return renderQuoted(comments);
   }
 
-  function filename(doc, style) {
-    const base = doc.title.replace(/\.(md|markdown|mdown|mkd|mdx|html?|txt)$/i, '');
-    const ext = style === 'json' ? 'json' : 'md';
-    const d = new Date();
-    const p = (n) => String(n).padStart(2, '0');
-    return `${base}.comments-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.${ext}`;
-  }
-
-  RP.exporter = { build, filename, lineLabel, headingLabel, trimQuote, sortComments };
+  RP.exporter = {
+    build, lineLabel, headingLabel, trimQuote, sortComments,
+    isDocumentComment, DOCUMENT_LABEL
+  };
 })();

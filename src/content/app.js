@@ -37,18 +37,18 @@
       onRefresh: refresh,
       onToggle: () => {},
       onSelectComment: focusComment,
-      onToggleResolved: toggleResolved,
       onDelete: deleteComment,
+      onDeleteMissing: deleteMissingComments,
       onDeleteAll: deleteAllComments,
       onEdit: editComment,
       onLauncherClick: openComposerForSelection,
+      onDocumentComment: openComposerForDocument,
       onCancelComment: () => {
         state.pendingRange = null;
         state.editingId = null;
       },
       onSubmitComment: submitComment,
-      onCopy: copyExport,
-      onSave: saveExport
+      onCopy: copyExport
     });
 
     state.doc =
@@ -69,6 +69,7 @@
       RP.marks.removeAll(state.root);
       let changed = false;
       for (const c of state.doc.comments) {
+        if (RP.exporter.isDocumentComment(c)) continue;
         const range = RP.anchor.resolve(c.anchor, state);
         const missing = !range;
         if (Boolean(c.anchor.missing) !== missing) {
@@ -87,7 +88,7 @@
               changed = true;
             }
           }
-          RP.marks.apply(state.root, range, c.id, { resolved: c.status === 'resolved' });
+          RP.marks.apply(state.root, range, c.id);
         }
       }
       if (changed) RP.store.saveDoc(state.doc);
@@ -139,6 +140,13 @@
       ui.showComposer(rectOf(range), { quote: range.toString() });
     }
 
+    /** 範囲を選ばない、文書全体へのコメント */
+    function openComposerForDocument(rect) {
+      state.pendingRange = null;
+      state.editingId = null;
+      ui.showComposer(rect || EMPTY_RECT, { quote: '', scope: 'document' });
+    }
+
     function editComment(id, rect) {
       const c = state.doc.comments.find((x) => x.id === id);
       if (!c) return;
@@ -146,7 +154,7 @@
       state.pendingRange = null;
       const marks = RP.marks.marksOf(state.root, id);
       ui.showComposer(marks[0] ? rectOf(marks[0]) : rect || EMPTY_RECT, {
-        quote: c.anchor.quote,
+        quote: c.anchor?.quote || '',
         body: c.body
       });
     }
@@ -164,50 +172,46 @@
         return;
       }
 
+      const whole = ctx?.scope === 'document';
       const range = state.pendingRange;
       state.pendingRange = null;
-      if (!range) return;
+      if (!whole && !range) return;
 
-      const anchor = RP.anchor.create(range, state);
+      const anchor = whole ? null : RP.anchor.create(range, state);
       const comment = {
         id: util.uid(),
         body,
-        status: 'open',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         anchor
       };
       state.doc.comments.push(comment);
-      RP.marks.apply(state.root, range, comment.id);
+      if (range) {
+        RP.marks.apply(state.root, range, comment.id);
+        window.getSelection()?.removeAllRanges();
+      }
       state.activeId = comment.id;
-      window.getSelection()?.removeAllRanges();
       ui.setOpen(true);
-      ui.setFilter('open');
       RP.marks.setActive(state.root, comment.id);
       await persist();
       ui.toast(
-        anchor.startLine
-          ? `L${anchor.startLine} にコメントを追加しました`
-          : 'コメントを追加しました'
+        whole
+          ? '文書全体へのコメントを追加しました'
+          : anchor.startLine
+            ? `L${anchor.startLine} にコメントを追加しました`
+            : 'コメントを追加しました'
       );
     }
 
     function focusComment(id) {
       state.activeId = id;
       RP.marks.setActive(state.root, id);
-      if (!RP.marks.scrollTo(state.root, id)) {
+      const c = state.doc.comments.find((x) => x.id === id);
+      // 文書全体へのコメントには飛び先が無い
+      if (c && !RP.exporter.isDocumentComment(c) && !RP.marks.scrollTo(state.root, id)) {
         ui.toast('本文中に該当箇所が見つかりません');
       }
       refresh();
-    }
-
-    async function toggleResolved(id) {
-      const c = state.doc.comments.find((x) => x.id === id);
-      if (!c) return;
-      c.status = c.status === 'resolved' ? 'open' : 'resolved';
-      c.updatedAt = Date.now();
-      RP.marks.setResolved(state.root, id, c.status === 'resolved');
-      await persist();
     }
 
     async function deleteComment(id) {
@@ -218,6 +222,19 @@
       if (state.activeId === id) state.activeId = null;
       await persist();
       ui.toast('コメントを削除しました');
+    }
+
+    /** 引用箇所が本文から消えたもの（= 修正が反映されたもの）をまとめて片づける */
+    async function deleteMissingComments() {
+      const before = state.doc.comments.length;
+      state.doc.comments = state.doc.comments.filter((c) => !c.anchor?.missing);
+      const n = before - state.doc.comments.length;
+      if (n === 0) return;
+      if (state.activeId && !state.doc.comments.some((c) => c.id === state.activeId)) {
+        state.activeId = null;
+      }
+      await persist();
+      ui.toast(`未検出のコメントを ${n} 件削除しました`);
     }
 
     async function deleteAllComments() {
@@ -234,19 +251,16 @@
 
     /* ---------- エクスポート ---------- */
 
-    function buildExport(opts) {
-      return RP.exporter.build(state.doc, opts);
-    }
-
     async function copyExport(opts) {
-      const text = buildExport(opts);
+      const text = RP.exporter.build(state.doc, opts);
       if (!text.trim()) {
         ui.toast('書き出すコメントがありません');
         return;
       }
+      const done = `${opts.style === 'json' ? 'JSON' : 'Markdown'} をコピーしました`;
       try {
         await navigator.clipboard.writeText(text);
-        ui.toast('Markdown をコピーしました');
+        ui.toast(done);
       } catch {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -256,31 +270,8 @@
         ta.select();
         const ok = document.execCommand('copy');
         ta.remove();
-        ui.toast(ok ? 'Markdown をコピーしました' : 'コピーできませんでした');
+        ui.toast(ok ? done : 'コピーできませんでした');
       }
-    }
-
-    function saveExport(opts) {
-      const text = buildExport(opts);
-      if (!text.trim()) {
-        ui.toast('書き出すコメントがありません');
-        return;
-      }
-      const mime = opts.style === 'json' ? 'application/json' : 'text/markdown';
-      const blob = new Blob([text], { type: `${mime};charset=utf-8` });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = RP.exporter.filename(state.doc, opts.style);
-      a.setAttribute('data-rp-ignore', '');
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, 1000);
-      ui.toast('ダウンロードしました');
     }
 
     /* ---------- 入力イベント ---------- */
@@ -318,16 +309,16 @@
         state.activeId = mark.dataset.rpId;
         RP.marks.setActive(state.root, state.activeId);
         ui.setOpen(true);
-        ui.setFilter('all');
         refresh();
         const card = ui.el.list.querySelector(`.card[data-id="${CSS.escape(state.activeId)}"]`);
         card?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
       }
     }, { signal });
 
-    /* ショートカットは chrome.commands 経由でも、ページ上の keydown でも届く。
+    /* パネル開閉のショートカットは chrome.commands 経由でも、ページ上の keydown でも届く。
      * commands が他の拡張と衝突して割り当てられない環境でも動くよう両方受けるが、
-     * 二重に実行されないよう直近の同一コマンドは無視する。 */
+     * 二重に実行されないよう直近の同一コマンドは無視する。
+     * comment-selection は右クリックメニューから届く。 */
     const lastInvoked = new Map();
 
     function invokeCommand(name) {
@@ -340,11 +331,8 @@
 
     document.addEventListener('keydown', (e) => {
       if (!e.altKey || e.metaKey || e.ctrlKey) return;
-      const key = e.key.toLowerCase();
-      if (key === 'c') {
-        e.preventDefault();
-        invokeCommand('comment-selection');
-      } else if (key === 'r') {
+      // Mac の Option+R は e.key が「®」になるので、物理キーで見る
+      if (e.code === 'KeyR') {
         e.preventDefault();
         invokeCommand('toggle-sidebar');
       }

@@ -49,7 +49,6 @@
   async function touchIndex(doc) {
     const res = await get(INDEX_KEY);
     const index = res[INDEX_KEY] || {};
-    const open = doc.comments.filter((c) => c.status !== 'resolved').length;
     if (doc.comments.length === 0) {
       delete index[doc.key];
     } else {
@@ -59,7 +58,6 @@
         path: doc.path,
         mode: doc.mode,
         total: doc.comments.length,
-        open,
         updatedAt: doc.updatedAt
       };
     }

@@ -6,6 +6,9 @@
 
   const PANEL_WIDTH = 380;
 
+  /** Mac では Alt が Option キーなので、表記も合わせる */
+  const TOGGLE_KEY = /Mac/i.test(navigator.platform || navigator.userAgent) ? '⌥R' : 'Alt+R';
+
   const CSS = `
 :host {
   all: initial;
@@ -99,19 +102,24 @@
 .icon-btn[hidden] { display: none; }
 #offBtn:hover { background: rgba(209, 36, 47, .1); color: #d1242f; }
 
-.tabs {
-  display: flex; align-items: center; gap: 2px;
-  padding: 8px 10px; border-bottom: 1px solid var(--rp-border);
+.bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--rp-border);
 }
-.tabs .clear { margin-left: auto; flex: none; }
-.tabs .clear[data-confirm="1"] { color: #d1242f; border-color: #d1242f; }
-.tab {
-  border: none; background: transparent; cursor: pointer; padding: 5px 10px;
-  border-radius: 6px; font-size: 12.5px; color: var(--rp-text-sub); font-family: inherit;
+.count { flex: 1; font-size: 12.5px; color: var(--rp-text-sub); font-variant-numeric: tabular-nums; }
+.count strong { color: var(--rp-text); font-weight: 600; margin-right: 2px; }
+.bar .mini { flex: none; }
+.bar .prune:hover { color: var(--rp-warn); border-color: var(--rp-warn); }
+.bar .clear[data-confirm="1"] { color: #d1242f; border-color: #d1242f; }
+.mini[hidden] { display: none; }
+
+.doc-comment {
+  margin: 8px 8px 0; flex: none;
+  border: 1px dashed var(--rp-border); background: transparent; color: var(--rp-text-sub);
+  border-radius: var(--rp-radius); padding: 7px 10px; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; text-align: left;
 }
-.tab:hover { background: var(--rp-bg-sub); }
-.tab.active { background: var(--rp-accent-soft); color: var(--rp-accent); font-weight: 600; }
-.tab .n { opacity: .65; margin-left: 3px; font-variant-numeric: tabular-nums; }
+.doc-comment:hover { border-color: var(--rp-accent); color: var(--rp-accent); background: var(--rp-accent-soft); }
 
 .list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .empty { padding: 28px 18px; text-align: center; color: var(--rp-text-sub); font-size: 12px; }
@@ -130,7 +138,6 @@
 .card:hover { box-shadow: 0 1px 2px rgba(16,24,40,.05); }
 .card:hover { border-color: color-mix(in srgb, var(--rp-accent) 40%, var(--rp-border)); }
 .card.active { border-color: var(--rp-accent); background: var(--rp-accent-soft); }
-.card.resolved { opacity: .58; }
 .card.missing { border-left: 3px solid var(--rp-warn); }
 
 .card-loc {
@@ -142,6 +149,7 @@
   background: var(--rp-bg-sub); border: 1px solid var(--rp-border);
   border-radius: 4px; padding: 0 5px; font-size: 10px; color: var(--rp-text-sub);
 }
+.chip.scope { color: var(--rp-accent); border-color: var(--rp-accent); background: var(--rp-accent-soft); }
 .chip.warn { color: var(--rp-warn); border-color: var(--rp-warn); background: var(--rp-warn-soft); }
 .card-heading { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -152,7 +160,6 @@
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .card-body { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
-.card.resolved .card-body { text-decoration: line-through; text-decoration-color: var(--rp-text-sub); }
 
 .card-actions { display: flex; gap: 4px; margin-top: 7px; opacity: 0; transition: opacity .12s; }
 .card:hover .card-actions, .card.active .card-actions { opacity: 1; }
@@ -175,7 +182,7 @@
 .btn.primary { background: var(--rp-accent); border-color: var(--rp-accent); color: #fff; }
 .btn.primary:hover { filter: brightness(1.07); }
 .opts { display: flex; gap: 10px; margin-top: 7px; font-size: 11px; color: var(--rp-text-sub); flex-wrap: wrap; }
-.opts label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.opts label { display: flex; align-items: center; gap: 4px; }
 .opts select {
   font-family: inherit; font-size: 11px; border: 1px solid var(--rp-border);
   border-radius: 4px; background: var(--rp-bg); color: var(--rp-text); padding: 1px 3px;
@@ -213,6 +220,7 @@
   font-size: 12.5px; color: var(--rp-text-sub);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.composer-quote.scope { border-left-color: var(--rp-accent); color: var(--rp-accent); font-weight: 600; }
 .composer textarea {
   width: 100%; min-height: 74px; resize: vertical;
   border: 1px solid var(--rp-border); border-radius: 6px; padding: 7px 8px;
@@ -241,23 +249,23 @@
         <path d="M4.7 4.7a4.6 4.6 0 1 0 6.6 0"/>
       </svg>
     </button>
-    <button class="icon-btn" id="closeBtn" title="パネルを閉じる (Alt+R)">✕</button>
+    <button class="icon-btn" id="closeBtn" title="パネルを閉じる (${TOGGLE_KEY})">✕</button>
   </div>
-  <div class="tabs">
-    <button class="tab active" data-filter="open">未対応<span class="n" id="nOpen">0</span></button>
-    <button class="tab" data-filter="resolved">対応済み<span class="n" id="nResolved">0</span></button>
-    <button class="tab" data-filter="all">すべて<span class="n" id="nAll">0</span></button>
+  <div class="bar">
+    <span class="count"><strong id="nAll">0</strong>件</span>
+    <button class="mini prune" id="pruneBtn"
+            title="引用箇所が本文から消えた（修正が反映された）コメントを削除" hidden></button>
     <button class="mini danger clear" id="clearBtn"
             title="この文書のコメントをすべて削除" hidden>全件削除</button>
   </div>
+  <button class="doc-comment" id="docCommentBtn"
+          title="範囲を選ばずに、文書全体に対するコメントを書く">＋ 文書全体へのコメント</button>
   <div class="list" id="list"></div>
   <div class="foot">
     <div class="foot-row">
       <button class="btn primary" id="copyBtn">コピー</button>
-      <button class="btn" id="saveBtn">.md 保存</button>
     </div>
     <div class="opts">
-      <label><input type="checkbox" id="optResolved"> 対応済みも含める</label>
       <label>形式
         <select id="optStyle">
           <option value="quote">引用 + コメント</option>
@@ -304,18 +312,18 @@
       list: $('list'),
       docTitle: $('docTitle'),
       docPath: $('docPath'),
-      nOpen: $('nOpen'), nResolved: $('nResolved'), nAll: $('nAll'),
+      nAll: $('nAll'),
       launcher: $('launcher'),
       composer: $('composer'),
       composerQuote: $('composerQuote'),
+      docCommentBtn: $('docCommentBtn'),
       composerInput: $('composerInput'),
       toast: $('toast'),
-      optResolved: $('optResolved'),
       optStyle: $('optStyle'),
+      pruneBtn: $('pruneBtn'),
       clearBtn: $('clearBtn')
     };
 
-    let filter = 'open';
     let isOpen = false;
     let composerCtx = null;
 
@@ -361,7 +369,11 @@
     function showComposer(rect, ctx) {
       composerCtx = ctx;
       hideLauncher();
-      el.composerQuote.textContent = util.truncate(ctx.quote, 160);
+      // 引用が無いのは文書全体へのコメント
+      el.composerQuote.classList.toggle('scope', !ctx.quote);
+      el.composerQuote.textContent = ctx.quote
+        ? util.truncate(ctx.quote, 160)
+        : RP.exporter.DOCUMENT_LABEL + 'へのコメント';
       el.composerInput.value = ctx.body || '';
       el.composer.classList.add('show');
 
@@ -414,30 +426,27 @@
       el.docPath.textContent = state.path;
 
       const all = RP.exporter.sortComments(state.comments);
-      const open = all.filter((c) => c.status !== 'resolved');
-      const resolved = all.filter((c) => c.status === 'resolved');
-      el.nOpen.textContent = open.length;
-      el.nResolved.textContent = resolved.length;
       el.nAll.textContent = all.length;
+
+      const missing = all.filter((c) => c.anchor?.missing).length;
+      el.pruneBtn.hidden = missing === 0;
+      el.pruneBtn.textContent = `未検出 ${missing} 件を削除`;
 
       el.clearBtn.hidden = all.length === 0;
       if (el.clearBtn.hidden && clearTimer) resetClear();
 
-      const shown = filter === 'open' ? open : filter === 'resolved' ? resolved : all;
       el.list.textContent = '';
 
-      if (shown.length === 0) {
+      if (all.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty';
         empty.innerHTML =
-          filter === 'open' && all.length > 0
-            ? '<strong>未対応の指摘はありません</strong>「すべて」タブで全件を確認できます。'
-            : '<strong>まだコメントがありません</strong>本文のテキストを選択して <kbd>✎ コメント</kbd> を押すか、<kbd>Alt</kbd>+<kbd>C</kbd> を押してください。';
+          '<strong>まだコメントがありません</strong>本文のテキストを選択して <kbd>✎ コメント</kbd> を押してください。資料全体への指示は上のボタンから書けます。';
         el.list.appendChild(empty);
         return;
       }
 
-      for (const c of shown) el.list.appendChild(renderCard(c, state.activeId));
+      for (const c of all) el.list.appendChild(renderCard(c, state.activeId));
     }
 
     function renderCard(c, activeId) {
@@ -445,11 +454,16 @@
       card.className = 'card';
       card.dataset.id = c.id;
       if (c.id === activeId) card.classList.add('active');
-      if (c.status === 'resolved') card.classList.add('resolved');
       if (c.anchor?.missing) card.classList.add('missing');
 
       const loc = document.createElement('div');
       loc.className = 'card-loc';
+      if (RP.exporter.isDocumentComment(c)) {
+        const chip = document.createElement('span');
+        chip.className = 'chip scope';
+        chip.textContent = RP.exporter.DOCUMENT_LABEL;
+        loc.appendChild(chip);
+      }
       const line = RP.exporter.lineLabel(c.anchor);
       if (line) {
         const chip = document.createElement('span');
@@ -488,7 +502,6 @@
 
       const actions = document.createElement('div');
       actions.className = 'card-actions';
-      actions.appendChild(miniBtn(c.status === 'resolved' ? '未対応に戻す' : '対応済み', 'resolve'));
       actions.appendChild(miniBtn('編集', 'edit'));
       const del = miniBtn('削除', 'delete');
       del.classList.add('danger');
@@ -513,6 +526,11 @@
     offBtn.hidden = handlers.canDisable === false;
     offBtn.addEventListener('click', () => handlers.onDisable?.());
 
+    el.docCommentBtn.addEventListener('click', () =>
+      handlers.onDocumentComment?.(el.docCommentBtn.getBoundingClientRect()));
+
+    el.pruneBtn.addEventListener('click', () => handlers.onDeleteMissing?.());
+
     el.clearBtn.addEventListener('click', () => {
       if (el.clearBtn.dataset.confirm !== '1') {
         armClear();
@@ -522,19 +540,10 @@
       handlers.onDeleteAll?.();
     });
 
-    for (const tab of shadow.querySelectorAll('.tab')) {
-      tab.addEventListener('click', () => {
-        filter = tab.dataset.filter;
-        for (const t of shadow.querySelectorAll('.tab')) t.classList.toggle('active', t === tab);
-        handlers.onRefresh?.();
-      });
-    }
-
     el.list.addEventListener('click', (e) => {
       const card = e.target.closest('.card');
       if (!card) return;
       const action = e.target.dataset?.action;
-      if (action === 'resolve') return handlers.onToggleResolved?.(card.dataset.id);
       if (action === 'delete') return handlers.onDelete?.(card.dataset.id);
       if (action === 'edit') {
         const rect = card.getBoundingClientRect();
@@ -563,12 +572,8 @@
       e.stopPropagation();
     });
 
-    const exportOpts = () => ({
-      style: el.optStyle.value,
-      includeResolved: el.optResolved.checked
-    });
-    shadow.getElementById('copyBtn').addEventListener('click', () => handlers.onCopy?.(exportOpts()));
-    shadow.getElementById('saveBtn').addEventListener('click', () => handlers.onSave?.(exportOpts()));
+    shadow.getElementById('copyBtn').addEventListener('click', () =>
+      handlers.onCopy?.({ style: el.optStyle.value }));
 
     return {
       el,
@@ -581,11 +586,6 @@
       setOpen,
       isOpen: () => isOpen,
       isComposerOpen: () => el.composer.classList.contains('show'),
-      getFilter: () => filter,
-      setFilter(next) {
-        filter = next;
-        for (const t of shadow.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.filter === next);
-      },
       destroy() {
         document.documentElement.style.paddingRight = '';
         host.remove();

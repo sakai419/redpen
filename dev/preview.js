@@ -21,24 +21,30 @@
 
   document.getElementById('seed').addEventListener('click', async () => {
     const seeds = [
-      ['本システムは常時オンラインであることを前提とする。', 'オフライン時の挙動が未定義。ネットワーク断で処理が落ちた場合の扱いを追記してください。', 'open'],
-      ['db.insert(row)', 'ロールバック無しは受け入れられません。トランザクション内で一括投入し、失敗時は全件戻す設計にしてください。', 'open'],
-      ['導入により、データ移行にかかる工数は 3 分の 1 になる。', '「3 分の 1」の根拠がありません。前提となる単価と件数を明示してください。', 'open'],
-      ['Excel 形式は将来的な拡張とする。', 'この判断の理由を一行入れてください。', 'resolved']
+      ['本システムは常時オンラインであることを前提とする。', 'オフライン時の挙動が未定義。ネットワーク断で処理が落ちた場合の扱いを追記してください。'],
+      ['db.insert(row)', 'ロールバック無しは受け入れられません。トランザクション内で一括投入し、失敗時は全件戻す設計にしてください。'],
+      ['導入により、データ移行にかかる工数は 3 分の 1 になる。', '「3 分の 1」の根拠がありません。前提となる単価と件数を明示してください。'],
+      ['Excel 形式は将来的な拡張とする。', 'この判断の理由を一行入れてください。']
     ];
     const doc = RP.store.emptyDoc(KEY, { title: 'sample-report.md', path: '/Users/example/reports/sample-report.md', mode: 'markdown' });
-    for (const [needle, body, status] of seeds) {
+    for (const [needle, body] of seeds) {
       const anchor = anchorFor(needle);
       if (!anchor) continue;
       doc.comments.push({
         id: RP.util.uid(),
         body,
-        status,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         anchor
       });
     }
+    doc.comments.push({
+      id: RP.util.uid(),
+      body: '結論を冒頭に移し、各節はその根拠として読めるように並べ替えてください。',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      anchor: null
+    });
     await RP.store.saveDoc(doc);
     location.reload();
   });

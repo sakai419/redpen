@@ -61,7 +61,7 @@
    * range を mark 要素で包む。
    * @returns {HTMLElement[]} 生成した mark の配列（失敗時は空配列）
    */
-  function apply(root, range, id, opts = {}) {
+  function apply(root, range, id) {
     if (!range || range.collapsed) return [];
     let nodes;
     try {
@@ -76,7 +76,6 @@
       const mark = document.createElement('mark');
       mark.className = 'rp-hl';
       mark.dataset.rpId = id;
-      if (opts.resolved) mark.classList.add('rp-hl-resolved');
       node.parentNode.insertBefore(mark, node);
       mark.appendChild(node);
       marks.push(mark);
@@ -111,10 +110,6 @@
     }
   }
 
-  function setResolved(root, id, resolved) {
-    for (const mark of marksOf(root, id)) mark.classList.toggle('rp-hl-resolved', resolved);
-  }
-
   function setActive(root, id) {
     for (const mark of Array.from(root.querySelectorAll(MARK_SELECTOR))) {
       mark.classList.toggle('rp-hl-active', mark.dataset.rpId === id);
@@ -130,5 +125,5 @@
     return true;
   }
 
-  RP.marks = { apply, remove, removeAll, marksOf, setActive, setResolved, scrollTo };
+  RP.marks = { apply, remove, removeAll, marksOf, setActive, scrollTo };
 })();

@@ -21,7 +21,7 @@
   async function copyDoc(key) {
     const doc = await RP.store.loadDoc(key);
     if (!doc || doc.comments.length === 0) return toast('コメントがありません');
-    const text = RP.exporter.build(doc, { style: 'quote', includeResolved: false });
+    const text = RP.exporter.build(doc, { style: 'quote' });
     await navigator.clipboard.writeText(text);
     toast('Markdown をコピーしました');
   }
@@ -54,9 +54,8 @@
     }
 
     const doc = await RP.store.loadDoc(key);
-    const open = doc ? doc.comments.filter((c) => c.status !== 'resolved').length : 0;
     const total = doc ? doc.comments.length : 0;
-    $('curMeta').textContent = total > 0 ? `未対応 ${open} 件 / 全 ${total} 件` : 'コメントはまだありません';
+    $('curMeta').textContent = total > 0 ? `コメント ${total} 件` : 'コメントはまだありません';
 
     await renderTabToggle(tab);
 
@@ -145,7 +144,7 @@
       name.textContent = d.title;
       const count = document.createElement('span');
       count.className = 'doc-count';
-      count.innerHTML = `<span class="open">${d.open}</span> / ${d.total}`;
+      count.textContent = `${d.total} 件`;
       row.append(name, count);
 
       const path = document.createElement('div');

@@ -77,7 +77,7 @@
       name.textContent = d.title;
       const meta = document.createElement('span');
       meta.className = 'meta';
-      meta.textContent = `未対応 ${d.open} / 全 ${d.total}`;
+      meta.textContent = `${d.total} 件`;
       a.append(name, meta);
       a.title = d.path;
       li.appendChild(a);

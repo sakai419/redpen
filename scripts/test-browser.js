@@ -238,9 +238,82 @@ async function selectLineIn(page, selector, needle) {
   await wait(300);
   await shot('03-narrow.png');
 
-  section('コメントの一括削除');
+  section('文書全体へのコメント');
   await page.setViewport({ width: 1440, height: 900 });
   await wait(300);
+  await page.evaluate(() => window.getSelection().removeAllRanges());
+  const docBtn = await box(page, '#docCommentBtn', true);
+  const panelNow = await box(page, '.panel', true);
+  check('ボタンがパネル内に見える',
+    docBtn?.visible && panelNow && docBtn.x >= panelNow.x && docBtn.x + docBtn.w <= panelNow.x + panelNow.w + 1,
+    `btn=${JSON.stringify(docBtn)} panel.x=${panelNow?.x}`);
+  await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('docCommentBtn').click());
+  await wait(250);
+  const docComposer = await box(page, '#composer', true);
+  check('選択なしで入力欄が開く', docComposer?.visible, JSON.stringify(docComposer));
+  check('入力欄が画面に収まりパネルに被らない',
+    docComposer && docComposer.x >= 0 && docComposer.y >= 0 && docComposer.y + docComposer.h <= 900 &&
+      docComposer.x + docComposer.w <= panelNow.x,
+    JSON.stringify(docComposer));
+  await shot('03b-document-comment.png');
+  await page.evaluate(() => {
+    const s = document.getElementById('redpen-root').shadowRoot;
+    s.getElementById('composerInput').value = '全体に結論を先に書いてください。';
+    s.getElementById('composerSave').click();
+  });
+  await wait(400);
+  check('一覧の先頭に文書全体として並ぶ',
+    await page.evaluate(() => {
+      const cards = document.getElementById('redpen-root').shadowRoot.querySelectorAll('.card');
+      return cards.length === 2 && cards[0].querySelector('.chip.scope')?.textContent === '文書全体';
+    }));
+  check('書き出しの先頭に出る',
+    (await page.evaluate(() =>
+      window.RedPen.exporter.build(window.RedPen.session.state.doc, {}))).startsWith('## 文書全体\n\n'));
+  await shot('03c-document-comment-card.png');
+
+  section('未検出の片づけ');
+  check('未検出が無いうちはボタンが出ない', !(await box(page, '#pruneBtn', true))?.visible);
+  await page.evaluate(() => {
+    const p = [...document.querySelectorAll('.rp-doc p')].find((e) => e.textContent.includes('常時オンライン'));
+    p.textContent = 'オフライン時は変更を端末に保持し、復帰後に再送する。';
+    window.RedPen.session.repaint();
+  });
+  await wait(200);
+  const pruneBox = await box(page, '#pruneBtn', true);
+  const clearBox = await box(page, '#clearBtn', true);
+  check('未検出が出るとボタンが並ぶ',
+    pruneBox?.visible && clearBox?.visible && pruneBox.x + pruneBox.w <= clearBox.x &&
+      Math.abs(pruneBox.y - clearBox.y) < 2,
+    `prune=${JSON.stringify(pruneBox)} clear=${JSON.stringify(clearBox)}`);
+  await shot('03d-missing.png');
+  await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('pruneBtn').click());
+  await wait(300);
+  check('未検出のものだけ消える',
+    (await page.evaluate(() =>
+      document.getElementById('redpen-root').shadowRoot.querySelectorAll('.card').length)) === 1);
+
+  section('パネル開閉のショートカット');
+  const pressOptionR = () => page.evaluate(() =>
+    // Mac の Option+R は key が「®」で届く
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '®', code: 'KeyR', altKey: true, bubbles: true })));
+  await pressOptionR();
+  await wait(300);
+  check('Option+R で閉じる', !(await page.evaluate(() => window.RedPen.session.ui.isOpen())));
+  await wait(300);
+  await pressOptionR();
+  await wait(300);
+  check('Option+R で開く', await page.evaluate(() => window.RedPen.session.ui.isOpen()));
+  await page.evaluate(() =>
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ç', code: 'KeyC', altKey: true, bubbles: true })));
+  await wait(200);
+  check('Option+C では何も開かない',
+    !(await box(page, '#composer', true))?.visible);
+
+  section('コメントの一括削除');
+  await wait(100);
   const clearBtn = await box(page, '#clearBtn', true);
   check('全件削除ボタンが出る', clearBtn?.visible, JSON.stringify(clearBtn));
 

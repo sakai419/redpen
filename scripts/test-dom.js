@@ -157,9 +157,6 @@ check('ハイライトしても本文テキストは変わらない',
   RP.anchor.fullText(article).includes(QUOTE));
 check('marksOf で引ける', RP.marks.marksOf(article, 'c1').length === marks.length);
 
-RP.marks.setResolved(article, 'c1', true);
-check('解決状態がクラスに反映される', marks[0].classList.contains('rp-hl-resolved'));
-
 // 重なるハイライト
 const overlap = RP.marks.apply(article, selectText('常時オンライン'), 'c2');
 check('重なる範囲にもハイライトできる', overlap.length >= 1);
@@ -238,7 +235,7 @@ check('HTML でも再解決できる',
 
 const htmlDoc = {
   title: 'sample-report.html', path: '/tmp/sample-report.html', mode: 'html',
-  comments: [{ id: 'x', body: '単一サーバー前提になっています。', status: 'open', createdAt: 1, anchor: htmlAnchor }]
+  comments: [{ id: 'x', body: '単一サーバー前提になっています。', createdAt: 1, anchor: htmlAnchor }]
 };
 const htmlMd = RP.exporter.build(htmlDoc, {});
 check('HTML の書き出しは見出しで位置を示す', htmlMd.startsWith('## 3. 留意点'), htmlMd);
