@@ -5,7 +5,7 @@ import {
   Interactive,
   useCurrentFrame,
 } from "remotion";
-import { sans } from "../fonts";
+import { mono, sans } from "../fonts";
 import { typed } from "../parts";
 
 export const Problem: React.FC = () => {
@@ -24,42 +24,68 @@ export const Problem: React.FC = () => {
       }}
     >
       <Interactive.Div
-        name="Chat bubble"
+        name="Terminal"
         style={{
           width: 1480,
-          minHeight: 300,
-          padding: "44px 56px",
-          borderRadius: 36,
-          backgroundColor: "#ffffff",
-          border: "2px solid #e6e8eb",
-          boxShadow: "0 18px 50px rgba(16, 24, 40, 0.08)",
-          fontSize: 54,
-          lineHeight: 1.65,
-          color: "#1f2328",
+          borderRadius: 26,
+          backgroundColor: "#0f1216",
+          boxShadow: "0 24px 60px rgba(16, 24, 40, 0.28)",
+          overflow: "hidden",
+          fontFamily: mono,
+          color: "#e3e8ee",
           opacity: interpolate(frame, [0, 12, 96, 116], [0, 1, 1, 0.4], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        {typed(
-          "3 章の前提条件のところに「常時オンライン」って書いてある一文があると思うんですけど、そこのオフライン時の扱いが……",
-          interpolate(frame, [10, 92], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
-        )}
-        <span
+        <div
           style={{
-            display: "inline-block",
-            width: 4,
-            height: 58,
-            marginLeft: 6,
-            verticalAlign: "-8px",
-            backgroundColor: "#2563eb",
-            opacity: Math.floor(frame / 8) % 2 === 0 ? 1 : 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "20px 28px",
+            borderBottom: "2px solid #262c34",
           }}
-        />
+        >
+          <span style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#ff5f57" }} />
+          <span style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#febc2e" }} />
+          <span style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#28c840" }} />
+          <span style={{ marginLeft: 18, fontSize: 26, color: "#6e7a87" }}>
+            AI エージェント
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            minHeight: 290,
+            padding: "36px 48px",
+            fontSize: 48,
+            lineHeight: 1.65,
+          }}
+        >
+          <span style={{ color: "#6e7a87", marginRight: 24 }}>&gt;</span>
+          <span style={{ fontFamily: sans }}>
+            {typed(
+              "report.md の 3 章、前提条件に「常時オンライン」と書いた一文があるはず。その一文の、オフライン時の扱いを……",
+              interpolate(frame, [10, 92], [0, 1], {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }),
+            )}
+            <span
+              style={{
+                display: "inline-block",
+                width: 22,
+                height: 50,
+                marginLeft: 6,
+                verticalAlign: "-8px",
+                backgroundColor: "#e3e8ee",
+                opacity: Math.floor(frame / 8) % 2 === 0 ? 1 : 0,
+              }}
+            />
+          </span>
+        </div>
       </Interactive.Div>
 
       <Interactive.Div
