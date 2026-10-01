@@ -31,6 +31,8 @@
   --rp-quote-line: #eab308;
   --rp-warn: #b45309;
   --rp-warn-soft: rgba(234, 179, 8, 0.14);
+  --rp-ask: #7c3aed;
+  --rp-ask-soft: rgba(124, 58, 237, 0.09);
   --rp-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px rgba(16, 24, 40, .12);
   --rp-radius: 10px;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
@@ -53,6 +55,8 @@
     --rp-quote-line: #facc15;
     --rp-warn: #f0b429;
     --rp-warn-soft: rgba(250, 204, 21, 0.12);
+    --rp-ask: #b197fc;
+    --rp-ask-soft: rgba(177, 151, 252, 0.13);
     --rp-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.55);
   }
 }
@@ -151,6 +155,7 @@
 }
 .chip.scope { color: var(--rp-accent); border-color: var(--rp-accent); background: var(--rp-accent-soft); }
 .chip.warn { color: var(--rp-warn); border-color: var(--rp-warn); background: var(--rp-warn-soft); }
+.chip.ask { color: var(--rp-ask); border-color: var(--rp-ask); background: var(--rp-ask-soft); }
 .card-heading { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .card-quote {
@@ -221,6 +226,24 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .composer-quote.scope { border-left-color: var(--rp-accent); color: var(--rp-accent); font-weight: 600; }
+/* 指示 / 質問 の切り替え */
+.composer-kind {
+  display: inline-flex; margin-bottom: 8px; padding: 2px; gap: 2px;
+  border: 1px solid var(--rp-border); border-radius: 7px; background: var(--rp-bg-sub);
+}
+.composer-kind button {
+  border: none; background: transparent; color: var(--rp-text-sub); cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 550;
+  padding: 2px 12px; border-radius: 5px;
+}
+.composer-kind button:hover { color: var(--rp-text); }
+.composer-kind button[aria-checked="true"] {
+  background: var(--rp-bg); color: var(--rp-accent);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+}
+.composer-kind button[data-kind="question"][aria-checked="true"] { color: var(--rp-ask); }
+.composer[data-kind="question"] textarea:focus { outline-color: var(--rp-ask-soft); border-color: var(--rp-ask); }
+.composer[data-kind="question"] #composerSave { background: var(--rp-ask); border-color: var(--rp-ask); }
 .composer textarea {
   width: 100%; min-height: 74px; resize: vertical;
   border: 1px solid var(--rp-border); border-radius: 6px; padding: 7px 8px;
@@ -278,8 +301,14 @@
 </div>
 <button class="launcher" id="launcher">✎ コメント</button>
 <div class="composer" id="composer">
+  <div class="composer-kind" id="composerKind" role="radiogroup" aria-label="コメントの種類">
+    <button type="button" role="radio" data-kind="instruction"
+            title="資料を直してほしいとき">指示</button>
+    <button type="button" role="radio" data-kind="question"
+            title="資料は直さず、内容について聞きたいとき（書き出しに [質問] が付く）">質問</button>
+  </div>
   <div class="composer-quote" id="composerQuote"></div>
-  <textarea id="composerInput" placeholder="修正してほしい内容を書く…"></textarea>
+  <textarea id="composerInput"></textarea>
   <div class="composer-foot">
     <span class="composer-hint">⌘/Ctrl+Enter で保存</span>
     <div class="composer-btns">
@@ -316,6 +345,7 @@
       launcher: $('launcher'),
       composer: $('composer'),
       composerQuote: $('composerQuote'),
+      composerKind: $('composerKind'),
       docCommentBtn: $('docCommentBtn'),
       composerInput: $('composerInput'),
       toast: $('toast'),
@@ -326,6 +356,7 @@
 
     let isOpen = false;
     let composerCtx = null;
+    let composerKind = 'instruction';
 
     /* ---- パネル開閉 ---- */
     function setOpen(next) {
@@ -366,6 +397,20 @@
     }
 
     /* ---- 入力ポップオーバー ---- */
+    const PLACEHOLDER = {
+      instruction: '修正してほしい内容を書く…',
+      question: '内容について聞きたいことを書く…'
+    };
+
+    function setKind(kind) {
+      composerKind = kind === 'question' ? 'question' : 'instruction';
+      el.composer.dataset.kind = composerKind;
+      for (const b of el.composerKind.querySelectorAll('button')) {
+        b.setAttribute('aria-checked', String(b.dataset.kind === composerKind));
+      }
+      el.composerInput.placeholder = PLACEHOLDER[composerKind];
+    }
+
     function showComposer(rect, ctx) {
       composerCtx = ctx;
       hideLauncher();
@@ -375,6 +420,7 @@
         ? util.truncate(ctx.quote, 160)
         : RP.exporter.DOCUMENT_LABEL + 'へのコメント';
       el.composerInput.value = ctx.body || '';
+      setKind(ctx.kind);
       el.composer.classList.add('show');
 
       const width = 320;
@@ -383,8 +429,10 @@
       let top = rect.bottom + 8;
       // 下にはみ出すなら選択範囲の上に出す
       if (top + el.composer.offsetHeight > window.innerHeight - 8) {
-        top = Math.max(8, rect.top - el.composer.offsetHeight - 8);
+        top = rect.top - el.composer.offsetHeight - 8;
       }
+      // 画面外の箇所をパネルから編集したときも、入力欄は画面内に出す
+      top = Math.max(8, Math.min(top, window.innerHeight - el.composer.offsetHeight - 8));
       el.composer.style.left = left + 'px';
       el.composer.style.top = top + 'px';
       el.composerInput.focus();
@@ -400,8 +448,9 @@
         return;
       }
       const ctx = composerCtx;
+      const kind = composerKind;
       hideComposer();
-      handlers.onSubmitComment?.(ctx, body);
+      handlers.onSubmitComment?.(ctx, body, kind);
     }
 
     /* ---- 全件削除（押し間違いを防ぐため 2 段） ---- */
@@ -462,6 +511,12 @@
         const chip = document.createElement('span');
         chip.className = 'chip scope';
         chip.textContent = RP.exporter.DOCUMENT_LABEL;
+        loc.appendChild(chip);
+      }
+      if (RP.exporter.isQuestion(c)) {
+        const chip = document.createElement('span');
+        chip.className = 'chip ask';
+        chip.textContent = RP.exporter.QUESTION_LABEL;
         loc.appendChild(chip);
       }
       const line = RP.exporter.lineLabel(c.anchor);
@@ -554,6 +609,14 @@
 
     el.launcher.addEventListener('mousedown', (e) => e.preventDefault());
     el.launcher.addEventListener('click', () => handlers.onLauncherClick?.());
+
+    el.composerKind.addEventListener('mousedown', (e) => e.preventDefault());
+    el.composerKind.addEventListener('click', (e) => {
+      const kind = e.target.closest?.('button')?.dataset.kind;
+      if (!kind) return;
+      setKind(kind);
+      el.composerInput.focus();
+    });
 
     shadow.getElementById('composerSave').addEventListener('click', submitComposer);
     shadow.getElementById('composerCancel').addEventListener('click', () => {

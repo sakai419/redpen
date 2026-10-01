@@ -273,6 +273,42 @@ async function selectLineIn(page, selector, needle) {
       window.RedPen.exporter.build(window.RedPen.session.state.doc, {}))).startsWith('## 文書全体\n\n'));
   await shot('03c-document-comment-card.png');
 
+  section('質問への切り替え');
+  await page.evaluate(() => {
+    const s = document.getElementById('redpen-root').shadowRoot;
+    [...s.querySelectorAll('.card')].find((c) => !c.querySelector('.chip.scope'))
+      .querySelector('[data-action="edit"]').click();
+  });
+  await wait(250);
+  const kindBox = await box(page, '#composerKind', true);
+  check('入力欄に切り替えが見える', kindBox?.visible && kindBox.w > 60, JSON.stringify(kindBox));
+  const editComposer = await box(page, '#composer', true);
+  check('画面外の箇所を編集しても入力欄が画面に収まる',
+    editComposer && editComposer.y >= 0 && editComposer.y + editComposer.h <= 900,
+    JSON.stringify(editComposer));
+  const saveColor = () => page.evaluate(() => getComputedStyle(
+    document.getElementById('redpen-root').shadowRoot.getElementById('composerSave')).backgroundColor);
+  const instructionColor = await saveColor();
+  await page.evaluate(() => document.getElementById('redpen-root').shadowRoot
+    .querySelector('#composerKind button[data-kind="question"]').click());
+  await wait(100);
+  check('質問にすると保存ボタンの色が変わる', (await saveColor()) !== instructionColor,
+    `${instructionColor} → ${await saveColor()}`);
+  await shot('03e-question-composer.png');
+  await page.evaluate(() => {
+    const s = document.getElementById('redpen-root').shadowRoot;
+    s.getElementById('composerInput').value = 'オフライン時はどう動く想定ですか？';
+    s.getElementById('composerSave').click();
+  });
+  await wait(400);
+  check('カードに質問の印が出る',
+    await page.evaluate(() => document.getElementById('redpen-root').shadowRoot
+      .querySelector('.card .chip.ask')?.textContent === '質問'));
+  check('書き出しに印が付く',
+    (await page.evaluate(() =>
+      window.RedPen.exporter.build(window.RedPen.session.state.doc, {}))).includes('## [質問] L30 — '));
+  await shot('03f-question-card.png');
+
   section('未検出の片づけ');
   check('未検出が無いうちはボタンが出ない', !(await box(page, '#pruneBtn', true))?.visible);
   await page.evaluate(() => {

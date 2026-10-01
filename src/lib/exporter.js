@@ -21,6 +21,20 @@
     return !c.anchor;
   }
 
+  /** 修正の依頼ではなく、内容について聞きたいだけのコメントに付ける印 */
+  const QUESTION_LABEL = '質問';
+
+  /** kind を持たない（この区別ができる前の）コメントは指示として扱う */
+  function isQuestion(c) {
+    return c.kind === 'question';
+  }
+
+  /** 位置表記の頭に、質問であることを示す印を付ける */
+  function withKind(c, text) {
+    if (!isQuestion(c)) return text;
+    return text ? `[${QUESTION_LABEL}] ${text}` : `[${QUESTION_LABEL}]`;
+  }
+
   /** アンカーを "L42-L45" / "L42" / "" に整形する */
   function lineLabel(anchor) {
     if (!anchor || anchor.startLine == null) return '';
@@ -80,7 +94,7 @@
   function renderQuoted(comments) {
     const out = [];
     for (const c of comments) {
-      const location = locationLabel(c.anchor);
+      const location = withKind(c, locationLabel(c.anchor));
       if (location) out.push(`## ${location}`, '');
       const quote = trimQuote(c.anchor?.quote || '');
       if (quote) out.push(`> ${quote}`, '');
@@ -94,7 +108,7 @@
     return (
       comments
         .map((c) => {
-          const location = locationLabel(c.anchor);
+          const location = withKind(c, locationLabel(c.anchor));
           const quote = trimQuote(c.anchor?.quote || '', 32);
           const head = [location, quote && `「${quote}」`].filter(Boolean).join(' ');
           return `- ${head ? head + ' — ' : ''}${util.normalize(c.body)}`;
@@ -108,6 +122,7 @@
       JSON.stringify(
         comments.map((c) => ({
           scope: isDocumentComment(c) ? 'document' : 'selection',
+          kind: isQuestion(c) ? 'question' : 'instruction',
           startLine: c.anchor?.startLine ?? null,
           endLine: c.anchor?.endLine ?? null,
           headingPath: c.anchor?.headingPath || [],
@@ -136,6 +151,6 @@
 
   RP.exporter = {
     build, lineLabel, headingLabel, trimQuote, sortComments,
-    isDocumentComment, DOCUMENT_LABEL
+    isDocumentComment, isQuestion, DOCUMENT_LABEL, QUESTION_LABEL
   };
 })();

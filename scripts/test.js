@@ -216,6 +216,35 @@ check('JSON では scope で区別できる',
     wholeJson[2].scope === 'selection',
   JSON.stringify(wholeJson.slice(0, 3)));
 
+section('質問');
+const withQuestion = {
+  ...doc,
+  comments: [
+    ...doc.comments,
+    {
+      id: 'q1', kind: 'question', body: '1,200 万円は何年分の想定ですか？', createdAt: 6, updatedAt: 6,
+      anchor: { quote: '年間で約 1,200 万円', startLine: 49, endLine: 49, headingPath: ['4. 期待効果'] }
+    },
+    { id: 'q2', kind: 'question', body: '想定読者は誰ですか？', createdAt: 7, updatedAt: 7, anchor: null }
+  ]
+};
+const questionMd = RP.exporter.build(withQuestion, {});
+check('質問は位置見出しに印が付く',
+  questionMd.includes('## [質問] L49 — 4. 期待効果\n\n> 年間で約 1,200 万円\n\n1,200 万円は何年分の想定ですか？'),
+  questionMd);
+check('文書全体への質問にも印が付く', questionMd.startsWith('## [質問] 文書全体\n\n想定読者は誰ですか？'),
+  JSON.stringify(questionMd.slice(0, 60)));
+check('kind の無い既存コメントは指示のまま（印なし）',
+  questionMd.includes('## L38-L39 — 3. 提案する仕様') && (questionMd.match(/\[質問\]/g) || []).length === 2,
+  questionMd);
+check('1 行ずつでも印が付く',
+  RP.exporter.build(withQuestion, { style: 'compact' }).includes('- [質問] L49 — 4. 期待効果 「年間で約 1,200 万円」 — 1,200 万円は何年分'),
+  RP.exporter.build(withQuestion, { style: 'compact' }));
+const questionJson = JSON.parse(RP.exporter.build(withQuestion, { style: 'json' }));
+check('JSON では kind で区別できる',
+  questionJson[0].kind === 'question' && questionJson.filter((c) => c.kind === 'instruction').length === 3,
+  JSON.stringify(questionJson.map((c) => c.kind)));
+
 section('util');
 check('docKey はクエリとハッシュを落とす',
   RP.util.docKey('file:///a/b/report.md?x=1#sec') === 'file:///a/b/report.md');

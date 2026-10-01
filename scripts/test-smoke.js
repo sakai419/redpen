@@ -174,6 +174,40 @@ virtualConsole.on('error', (...args) => errors.push(args.join(' ')));
     shadow.querySelectorAll('.list .card').length === 2 &&
       shadow.querySelectorAll('.list .card.missing').length === 0);
 
+  console.log('\n質問として書く');
+  const composerEl = shadow.getElementById('composer');
+  const kindBtn = (kind) => shadow.querySelector(`#composerKind button[data-kind="${kind}"]`);
+  const lineCard = () => Array.from(shadow.querySelectorAll('.list .card'))
+    .find((c) => !c.querySelector('.chip.scope'));
+  lineCard().querySelector('[data-action="edit"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 60));
+  check('既存のコメントは指示として開く',
+    composerEl.dataset.kind === 'instruction' && kindBtn('instruction').getAttribute('aria-checked') === 'true',
+    composerEl.dataset.kind);
+  kindBtn('question').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check('質問に切り替わる',
+    composerEl.dataset.kind === 'question' && kindBtn('question').getAttribute('aria-checked') === 'true');
+  check('入力欄の案内も変わる',
+    shadow.getElementById('composerInput').placeholder.includes('聞きたい'),
+    shadow.getElementById('composerInput').placeholder);
+  shadow.getElementById('composerInput').value = 'オフライン時はどう動く想定ですか？';
+  shadow.getElementById('composerSave').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 200));
+  check('カードに質問の印が出る', lineCard().querySelector('.chip.ask')?.textContent === '質問');
+  const storedQ = (await window.chrome.storage.local.get(
+    'doc:file:///Users/example/reports/sample-report.md'))['doc:file:///Users/example/reports/sample-report.md'];
+  check('質問として保存される',
+    storedQ.comments.find((c) => c.anchor)?.kind === 'question',
+    JSON.stringify(storedQ.comments.map((c) => c.kind)));
+  check('書き出しに質問の印が付く',
+    RP.exporter.build(storedQ, {}).includes('## [質問] L30 — 3. 提案する仕様 > 3.2 前提条件\n\n> 本システム'),
+    JSON.stringify(RP.exporter.build(storedQ, {})));
+
+  docCommentBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 60));
+  check('新しく書くときは指示に戻っている', composerEl.dataset.kind === 'instruction');
+  shadow.getElementById('composerCancel').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
   console.log('\n未検出をまとめて削除する');
   const prune = shadow.getElementById('pruneBtn');
   check('未検出が無いうちはボタンが出ない', prune.hidden);

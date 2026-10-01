@@ -155,16 +155,18 @@
       const marks = RP.marks.marksOf(state.root, id);
       ui.showComposer(marks[0] ? rectOf(marks[0]) : rect || EMPTY_RECT, {
         quote: c.anchor?.quote || '',
-        body: c.body
+        body: c.body,
+        kind: c.kind
       });
     }
 
-    async function submitComment(ctx, body) {
+    async function submitComment(ctx, body, kind = 'instruction') {
       if (state.editingId) {
         const c = state.doc.comments.find((x) => x.id === state.editingId);
         state.editingId = null;
         if (c) {
           c.body = body;
+          c.kind = kind;
           c.updatedAt = Date.now();
           await persist();
           ui.toast('コメントを更新しました');
@@ -180,6 +182,7 @@
       const anchor = whole ? null : RP.anchor.create(range, state);
       const comment = {
         id: util.uid(),
+        kind,
         body,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -194,12 +197,13 @@
       ui.setOpen(true);
       RP.marks.setActive(state.root, comment.id);
       await persist();
+      const noun = kind === 'question' ? '質問' : 'コメント';
       ui.toast(
         whole
-          ? '文書全体へのコメントを追加しました'
+          ? `文書全体への${noun}を追加しました`
           : anchor.startLine
-            ? `L${anchor.startLine} にコメントを追加しました`
-            : 'コメントを追加しました'
+            ? `L${anchor.startLine} に${noun}を追加しました`
+            : `${noun}を追加しました`
       );
     }
 
