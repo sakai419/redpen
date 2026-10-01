@@ -7,6 +7,7 @@ import { Missing } from "./scenes/Missing";
 import { Opening } from "./scenes/Opening";
 import { Outro } from "./scenes/Outro";
 import { Problem } from "./scenes/Problem";
+import { Question } from "./scenes/Question";
 import { SelectComment } from "./scenes/SelectComment";
 import { WholeDocument } from "./scenes/WholeDocument";
 
@@ -49,6 +50,13 @@ export const RedpenIntro: React.FC = () => (
     />
     <TransitionSeries.Sequence name="Whole document" durationInFrames={195}>
       <WholeDocument />
+    </TransitionSeries.Sequence>
+    <TransitionSeries.Transition
+      presentation={fade()}
+      timing={linearTiming({ durationInFrames: 15 })}
+    />
+    <TransitionSeries.Sequence name="Question" durationInFrames={210}>
+      <Question />
     </TransitionSeries.Sequence>
     <TransitionSeries.Transition
       presentation={fade()}
