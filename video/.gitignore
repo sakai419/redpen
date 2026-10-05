@@ -5,3 +5,6 @@ dist
 
 # Ignore the output video from Git but not videos you import into src/.
 out
+
+# 書き出した動画は GitHub Releases に置く
+redpen-intro.mp4
