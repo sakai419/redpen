@@ -5,6 +5,10 @@
 
 AI が生成したレポートや設計文書をレビューし、指摘をそのまま次の指示に貼り込むための道具です。
 
+https://github.com/user-attachments/assets/4b456b32-e625-4b96-bde4-584bcd430a69
+
+動画ファイルは [Releases](https://github.com/sakai419/redpen/releases/download/v0.1.0/redpen-intro.mp4) からも入手できます。
+
 ```
 ┌────────────────────┐      ┌──────────────────┐      ┌──────────────────┐
 │ AI がレポートを生成│ ───► │ redpen で赤入れ  │ ───► │ 指摘を貼って指示 │
