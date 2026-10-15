@@ -308,7 +308,7 @@
         state.pendingRange = null;
         state.editingId = null;
       }
-      const mark = e.target?.closest?.('mark.rp-hl');
+      const mark = e.target?.closest?.(RP.marks.SELECTOR);
       if (mark) {
         state.activeId = mark.dataset.rpId;
         RP.marks.setActive(state.root, state.activeId);

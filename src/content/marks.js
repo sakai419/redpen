@@ -5,7 +5,8 @@
   'use strict';
   const RP = (globalThis.RedPen = globalThis.RedPen || {});
 
-  const MARK_SELECTOR = 'mark.rp-hl';
+  const MARK_SELECTOR = '.rp-hl';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
 
   function isSkippable(node) {
     const p = node.parentElement;
@@ -57,8 +58,17 @@
     return collected;
   }
 
+  /** SVG の中では HTML の mark が描画されず文字ごと消えるので、tspan で包む */
+  function createWrapper(parent, id) {
+    const inSvg = parent.namespaceURI === SVG_NS;
+    const el = inSvg ? document.createElementNS(SVG_NS, 'tspan') : document.createElement('mark');
+    el.setAttribute('class', 'rp-hl');
+    el.setAttribute('data-rp-id', id);
+    return el;
+  }
+
   /**
-   * range を mark 要素で包む。
+   * range を mark 要素（SVG 内では tspan）で包む。
    * @returns {HTMLElement[]} 生成した mark の配列（失敗時は空配列）
    */
   function apply(root, range, id) {
@@ -73,9 +83,7 @@
     for (const node of nodes) {
       if (!node.parentNode) continue;
       if (!node.nodeValue.trim() && nodes.length > 1) continue;
-      const mark = document.createElement('mark');
-      mark.className = 'rp-hl';
-      mark.dataset.rpId = id;
+      const mark = createWrapper(node.parentNode, id);
       node.parentNode.insertBefore(mark, node);
       mark.appendChild(node);
       marks.push(mark);
@@ -125,5 +133,5 @@
     return true;
   }
 
-  RP.marks = { apply, remove, removeAll, marksOf, setActive, scrollTo };
+  RP.marks = { SELECTOR: MARK_SELECTOR, apply, remove, removeAll, marksOf, setActive, scrollTo };
 })();

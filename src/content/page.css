@@ -5,7 +5,7 @@
  * 目次・ハイライト・案内バーにも同じ定義を届けておく。 */
 .rp-md-page,
 .rp-outline,
-mark.rp-hl {
+.rp-hl {
   --rp-c-bg: #ffffff;
   --rp-c-bg-sub: #f6f8fa;
   --rp-c-bg-nav: #fafbfc;
@@ -32,7 +32,7 @@ mark.rp-hl {
 @media (prefers-color-scheme: dark) {
   .rp-md-page,
   .rp-outline,
-  mark.rp-hl {
+  .rp-hl {
     --rp-c-bg: #0f1216;
     --rp-c-bg-sub: #171b21;
     --rp-c-bg-nav: #12161b;
@@ -70,6 +70,19 @@ mark.rp-hl.rp-hl-active { background: var(--rp-c-mark-active, rgba(250, 204, 21,
   35% { box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.45); }
 }
 mark.rp-hl.rp-hl-flash { animation: rp-flash 1.1s ease-out; }
+
+/* SVG の文字には background が効かないので、文字の背後に太い線を引いて塗る */
+tspan.rp-hl {
+  paint-order: stroke;
+  stroke: var(--rp-c-mark, rgba(250, 204, 21, 0.4));
+  stroke-width: 0.4em;
+  stroke-linejoin: round;
+  text-decoration: underline;
+  text-decoration-color: var(--rp-c-mark-line, rgba(180, 120, 10, 0.5));
+  cursor: pointer;
+}
+tspan.rp-hl:hover { stroke: var(--rp-c-mark-hover, rgba(250, 204, 21, 0.58)); }
+tspan.rp-hl.rp-hl-active { stroke: var(--rp-c-mark-active, rgba(250, 204, 21, 0.78)); }
 
 /* ---------- Markdown ビュー ---------- */
 

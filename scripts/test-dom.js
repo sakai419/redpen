@@ -169,6 +169,26 @@ check('外した後も本文が壊れない', RP.anchor.fullText(article).includ
 RP.marks.removeAll(article);
 check('すべて外せる', article.querySelectorAll('mark.rp-hl').length === 0);
 
+// SVG の中に HTML の mark を入れると文字ごと描画されなくなる
+const svgHost = document.createElement('div');
+svgHost.innerHTML = '<svg><text x="0" y="10">図の中のラベル</text></svg>';
+article.appendChild(svgHost);
+const svgText = svgHost.querySelector('text');
+const svgRange = document.createRange();
+svgRange.setStart(svgText.firstChild, 3);
+svgRange.setEnd(svgText.firstChild, 7);
+const svgMarks = RP.marks.apply(article, svgRange, 'c3');
+check('SVG 内は tspan で包む',
+  svgMarks.length === 1 && svgMarks[0].localName === 'tspan' &&
+  svgMarks[0].namespaceURI === 'http://www.w3.org/2000/svg',
+  svgMarks.map((m) => m.namespaceURI + ' ' + m.localName).join(', '));
+check('SVG 内のハイライトも id で引ける', RP.marks.marksOf(article, 'c3').length === 1);
+check('SVG の文字は消えない', svgText.textContent === '図の中のラベル', svgText.textContent);
+RP.marks.remove(article, 'c3');
+check('SVG 内のハイライトを外せる',
+  svgText.querySelector('.rp-hl') === null && svgText.textContent === '図の中のラベル');
+svgHost.remove();
+
 /* ---------- 再解決 ---------- */
 
 section('anchor.resolve');
