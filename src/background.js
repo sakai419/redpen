@@ -131,9 +131,21 @@ function sendToTab(tabId, message) {
   });
 }
 
+/* ---------- 保存の片づけ ---------- */
+
+/** コメントの無くなった文書の差分の基準を消す（コメントと同じ容量を使うので溜めない） */
+async function pruneOrphanBases() {
+  const all = await chrome.storage.local.get(null);
+  const orphans = Object.keys(all).filter(
+    (k) => k.startsWith('base:') && !(('doc:' + k.slice('base:'.length)) in all)
+  );
+  if (orphans.length > 0) await chrome.storage.local.remove(orphans);
+}
+
 /* ---------- コンテキストメニュー ---------- */
 
 chrome.runtime.onInstalled.addListener(() => {
+  pruneOrphanBases();
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: MENU_TOGGLE,

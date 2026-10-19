@@ -302,6 +302,19 @@ section('差分ハイライト（Markdown）');
     return RP.diffview.paint(diffArticle, same) === 0 && diffArticle.querySelector('[data-rp-hunk]') === null;
   })());
   diffArticle.remove();
+
+  // フォーム部品は直下のテキストノードが値になるので、包むと値が欠ける
+  const form = document.createElement('div');
+  form.innerHTML = '<p>説明</p><textarea>old text</textarea><select><option>old</option></select>';
+  document.body.appendChild(form);
+  const formBase = RP.diffview.snapshot(form);
+  form.querySelector('textarea').textContent = 'new text';
+  form.querySelector('option').textContent = 'new';
+  check('textarea / select の中身は差分の対象にしない',
+    RP.diffview.paint(form, formBase) === 0 && form.querySelector('textarea').value === 'new text' &&
+      form.querySelector('option').textContent === 'new',
+    form.innerHTML);
+  form.remove();
 }
 
 /* ---------- HTML モード ---------- */

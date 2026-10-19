@@ -30,7 +30,10 @@
       acceptNode(node) {
         const p = node.parentElement;
         if (!p) return NodeFilter.FILTER_REJECT;
-        if (p.closest('script, style, .rp-ui, [data-rp-ignore]')) return NodeFilter.FILTER_REJECT;
+        // フォーム部品の中身は直下のテキストノードがそのまま値になるので、mark で包むと値が欠ける
+        if (p.closest('script, style, noscript, textarea, select, .rp-ui, [data-rp-ignore]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
         return NodeFilter.FILTER_ACCEPT;
       }
     });

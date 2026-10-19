@@ -148,6 +148,23 @@ virtualConsole.on('error', (...args) => errors.push(args.join(' ')));
   check('移動ボタンは引っ込む', shadow.getElementById('diffNext').hidden);
   check('本文に差分の印は付かない', article.querySelector('.rp-diff-ins, .rp-diff-del, .rp-diff-gone') === null);
 
+  // 差分の描画が例外を出しても、コピーとパネルは動き続ける
+  const realPaint = RP.diffview.paint;
+  const warned = [];
+  const realWarn = window.console.warn;
+  window.console.warn = (...args) => warned.push(args.join(' '));
+  RP.diffview.paint = () => { throw new Error('boom'); };
+  shadow.getElementById('copyBtn').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 120));
+  RP.diffview.paint = realPaint;
+  window.console.warn = realWarn;
+  check('差分の描画に失敗してもコピーはできる', toastText() === 'Markdown をコピーしました', toastText());
+  check('失敗は警告に残し、件数は 0 にする',
+    warned.some((w) => w.includes('差分を描けませんでした')) &&
+      shadow.getElementById('diffLabel').textContent === '変更なし',
+    JSON.stringify(warned));
+  check('失敗してもページの例外にはならない', errors.length === 0, errors.join('\n').slice(0, 300));
+
   console.log('\n文書全体へのコメント');
   window.getSelection().removeAllRanges();
   const docCommentBtn = shadow.getElementById('docCommentBtn');
@@ -270,6 +287,9 @@ virtualConsole.on('error', (...args) => errors.push(args.join(' ')));
     after['doc:file:///Users/example/reports/sample-report.md'] === undefined,
     JSON.stringify(after).slice(0, 120));
   check('文書一覧からも外れる', (await RP.store.listDocs()).length === 0);
+  check('差分の基準も一緒に消える（一覧から消せなくなるため）',
+    (await window.chrome.storage.local.get('base:file:///Users/example/reports/sample-report.md'))[
+      'base:file:///Users/example/reports/sample-report.md'] === undefined);
 
   console.log(`\n${passed} passed, ${failed} failed\n`);
   window.close();
