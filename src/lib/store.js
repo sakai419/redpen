@@ -39,8 +39,9 @@
   async function saveDoc(doc) {
     doc.updatedAt = Date.now();
     if (doc.comments.length === 0) {
-      // 空の文書を残すと storage が際限なく育つので消す
-      await chrome.storage.local.remove(DOC_PREFIX + doc.key);
+      // 空の文書を残すと storage が際限なく育つので消す。
+      // 差分の基準も一緒に消す（一覧から外れた文書の基準は、残ると消す手段がない）
+      await chrome.storage.local.remove([DOC_PREFIX + doc.key, BASE_PREFIX + doc.key]);
     } else {
       await chrome.storage.local.set({ [DOC_PREFIX + doc.key]: doc });
     }

@@ -103,7 +103,18 @@
     function paintDiff() {
       const d = state.diff;
       d.cursor = -1;
-      d.count = d.base ? RP.diffview.paint(state.root, d.base) : 0;
+      try {
+        d.count = d.base ? RP.diffview.paint(state.root, d.base) : 0;
+      } catch (err) {
+        // 差分が描けなくても、コメントの機能は止めない
+        console.warn('redpen: 差分を描けませんでした', err);
+        try {
+          RP.diffview.clear(state.root);
+        } catch {
+          /* 片づけにも失敗したら、描きかけの印は残す */
+        }
+        d.count = 0;
+      }
     }
 
     function refresh() {
