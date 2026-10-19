@@ -8,7 +8,9 @@
     "test:browser": "node scripts/test-browser.js",
     "shots": "node scripts/test-browser.js --shot",
     "icons": "node scripts/make-icons.js",
-    "theme": "node scripts/make-hljs-theme.js"
+    "theme": "node scripts/make-hljs-theme.js",
+    "diff:reset": "node scripts/diff-example.js reset",
+    "diff:revise": "node scripts/diff-example.js revise"
   },
   "devDependencies": {
     "jsdom": "^26.0.0",

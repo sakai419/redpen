@@ -24,12 +24,14 @@ const JS_FILES = [
   'src/lib/util.js',
   'src/lib/store.js',
   'src/lib/exporter.js',
+  'src/lib/diff.js',
   'src/content/detect.js',
   'src/content/markdown.js',
   'src/content/htmlsource.js',
   'src/content/outline.js',
   'src/content/anchor.js',
   'src/content/marks.js',
+  'src/content/diffview.js',
   'src/content/sidebar.js',
   'src/content/app.js',
   'src/content/main.js'
@@ -457,6 +459,96 @@ async function selectLineIn(page, selector, needle) {
     await page2.evaluate(() => document.documentElement.style.paddingLeft));
   check('元ページの中身は残る',
     await page2.evaluate(() => document.querySelector('main h1')?.textContent.includes('API')));
+
+  /* ================= 差分ハイライト ================= */
+  // 修正前の版でコピーし、ファイルを修正後の版に差し替えてリロードする（AI が直した流れの再現）
+  const diffDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'redpen-diff-'));
+  const diffServe = await serveExamples(diffDir);
+  const page3 = await browser.newPage();
+  const errors3 = [];
+  page3.on('pageerror', (e) => errors3.push(String(e)));
+  page3.on('console', (m) => { if (m.type() === 'error') errors3.push(m.text()); });
+  await page3.setViewport({ width: 1440, height: 900 });
+
+  const inPanel = (fn, arg) => page3.evaluate(
+    (src, arg) => new Function('root', 'arg', src)(document.getElementById('redpen-root').shadowRoot, arg),
+    fn, arg);
+  const stage = (name, ext) =>
+    fs.copyFileSync(path.join(ROOT, 'examples/diff', `report.${name}.${ext}`), path.join(diffDir, `report.${ext}`));
+
+  for (const [ext, want] of [['md', 8], ['html', 6]]) {
+    section(`差分ハイライト (.${ext})`);
+    stage('before', ext);
+    await page3.goto(`${diffServe.origin}/report.${ext}`, { waitUntil: 'load' });
+    await injectExtension(page3);
+    check('基準が無いうちは差分の行を出さない', await inPanel("return root.getElementById('diffBar').hidden"));
+    // コメントが無いとコピーできない（= 基準も保存されない）ので、文書全体へのコメントを 1 件書く
+    await inPanel(`root.getElementById('docCommentBtn').click();
+      root.getElementById('composerInput').value = '根拠を補ってください。';
+      root.getElementById('composerSave').click();`);
+    await wait(200);
+    await inPanel("root.getElementById('copyBtn').click()");
+    await wait(300);
+    check('コピーすると「変更なし」になる',
+      await inPanel("return root.getElementById('diffLabel').textContent") === '変更なし');
+
+    stage('after', ext);
+    await page3.reload({ waitUntil: 'load' });
+    await injectExtension(page3);
+    const label = await inPanel("return root.getElementById('diffLabel').textContent");
+    check(`リロードすると差分を数える（${want} 箇所）`, label === `差分 ${want} 箇所`, label);
+    check('差分があればパネルを開く', await inPanel("return root.querySelector('.panel').classList.contains('open')"));
+    const insBg = await page3.$eval('.rp-diff-ins', (el) => getComputedStyle(el).backgroundColor);
+    check('足された文言に背景が付く', insBg !== 'rgba(0, 0, 0, 0)' && insBg !== 'transparent', insBg);
+    const gone = await page3.$eval('.rp-diff-gone', (el) => {
+      const r = el.getBoundingClientRect();
+      return { w: r.width, text: el.textContent, before: getComputedStyle(el, '::before').content };
+    });
+    check('消えた場所に線が見え、消えた中身は出ない',
+      gone.w > 100 && gone.text === '' && (gone.before === 'none' || gone.before === 'normal'), JSON.stringify(gone));
+
+    await inPanel("root.getElementById('diffNext').click()");
+    await wait(600);
+    const step = await inPanel("return root.getElementById('diffLabel').textContent");
+    check('↓ で 1 箇所目へ移動し、位置を出す', step.endsWith(`1 / ${want}`), step);
+    const inView = await page3.evaluate(() => {
+      const r = document.querySelector('[data-rp-hunk="0"]').getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= innerHeight;
+    });
+    check('1 箇所目が画面内に入る', inView);
+    await inPanel("root.getElementById('diffPrev').click()");
+    await wait(100);
+    check('↑ は最後の箇所へ回り込む',
+      (await inPanel("return root.getElementById('diffLabel').textContent")).endsWith(`${want} / ${want}`));
+    if (WANT_SHOTS) {
+      await inPanel("root.getElementById('diffNext').click()");
+      await inPanel("root.getElementById('diffNext').click()");
+      await wait(700);
+      fs.mkdirSync(SHOT_DIR, { recursive: true });
+      await page3.screenshot({ path: path.join(SHOT_DIR, `05-diff-${ext}.png`) });
+    }
+
+    await inPanel("root.getElementById('diffToggle').click()");
+    await wait(100);
+    const hidden = await page3.evaluate(() => ({
+      bg: getComputedStyle(document.querySelector('.rp-diff-ins')).backgroundColor,
+      gone: getComputedStyle(document.querySelector('.rp-diff-gone')).display
+    }));
+    check('「隠す」で塗りと消えた場所の印が消える',
+      (hidden.bg === 'rgba(0, 0, 0, 0)' || hidden.bg === 'transparent') && hidden.gone === 'none',
+      JSON.stringify(hidden));
+    check('ボタンが「表示」に変わる', await inPanel("return root.getElementById('diffToggle').textContent") === '表示');
+    await inPanel("root.getElementById('diffToggle').click()");
+
+    await inPanel("root.getElementById('copyBtn').click()");
+    await wait(300);
+    check('もう一度コピーすると基準が今の版になり、印が消える',
+      (await inPanel("return root.getElementById('diffLabel').textContent")) === '変更なし' &&
+        (await page3.$('[data-rp-hunk]')) === null);
+  }
+  check('差分の確認中に例外なし', errors3.length === 0, errors3.join('\n').slice(0, 700));
+  diffServe.server.close();
+  fs.rmSync(diffDir, { recursive: true, force: true });
 
   check('最後まで例外なし', errors.length === 0 && errors2.length === 0,
     [...errors, ...errors2].join('\n').slice(0, 700));

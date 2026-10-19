@@ -13,6 +13,7 @@ globalThis.crypto = require('crypto').webcrypto;
 for (const f of [
   'src/lib/util.js',
   'src/lib/exporter.js',
+  'src/lib/diff.js',
   'src/content/markdown.js',
   'src/content/anchor.js'
 ]) {
@@ -244,6 +245,65 @@ const questionJson = JSON.parse(RP.exporter.build(withQuestion, { style: 'json' 
 check('JSON では kind で区別できる',
   questionJson[0].kind === 'question' && questionJson.filter((c) => c.kind === 'instruction').length === 3,
   JSON.stringify(questionJson.map((c) => c.kind)));
+
+section('差分（ブロック内）');
+{
+  const r = RP.diff.diffText('回答までの平均時間は 6 時間である。', '回答までの平均時間は 2 時間である。');
+  check('数字だけの書き換えを拾う',
+    JSON.stringify(r.changes) === JSON.stringify([
+      { type: 'delete', at: 11, text: '6' },
+      { type: 'insert', start: 11, end: 12 }
+    ]),
+    JSON.stringify(r.changes));
+  check('ほとんど同じなら類似度が高い', r.similarity > 0.9, String(r.similarity));
+
+  const ws = RP.diff.diffText('a  b\n c', 'a b c');
+  check('空白の揺れは変更にしない', ws.changes.length === 0, JSON.stringify(ws.changes));
+
+  const island = RP.diff.diffText('担当者の工数を大きく減らせる', '担当者の時間を他の業務に回せる');
+  const del = island.changes.filter((c) => c.type === 'delete').map((c) => c.text);
+  check('変更に挟まれた短い一致はまとめる（「を」だけ残さない）',
+    del.length === 1 && del[0] === '工数を大きく減ら', JSON.stringify(island.changes));
+
+  const word = RP.diff.diffText('status=503', 'status=429');
+  check('英数字は語の単位で比べる',
+    word.changes.some((c) => c.type === 'delete' && c.text === '503'), JSON.stringify(word.changes));
+}
+
+section('差分（ブロックの並び）');
+{
+  const oldB = ['見出し', '段落 A はそのまま', '消える段落', '段落 B の数字は 10', '末尾'];
+  const newB = ['見出し', '段落 A はそのまま', '段落 B の数字は 20', '足された段落', '末尾'];
+  const r = RP.diff.diffBlocks(oldB, newB);
+  check('変わらないブロックは null', r.blocks[0] === null && r.blocks[1] === null && r.blocks[4] === null);
+  check('似ているブロックは書き換えとして中身を比べる',
+    r.blocks[2]?.type === 'changed' && r.blocks[2].changes.some((c) => c.type === 'delete' && c.text === '10'),
+    JSON.stringify(r.blocks[2]));
+  check('丸ごと足されたブロック', r.blocks[3]?.type === 'added', JSON.stringify(r.blocks[3]));
+  check('消えたブロックは次のブロックの直前に置く',
+    JSON.stringify([...r.removed]) === JSON.stringify([[2, ['消える段落']]]),
+    JSON.stringify([...r.removed]));
+
+  const cell = RP.diff.diffBlocks(['項目', '月 1 回', '次'], ['項目', '毎日', '次'], {
+    oldKinds: ['td', 'td', 'td'], newKinds: ['td', 'td', 'td']
+  });
+  check('似ていなくても同じ種類なら置き換えとして同じ場所に出す',
+    cell.blocks[1]?.type === 'changed' && cell.removed.size === 0 &&
+      cell.blocks[1].changes[0].text === '月 1 回',
+    JSON.stringify(cell));
+
+  const kinds = RP.diff.diffBlocks(['項目 1', '補足の段落', '次'], ['項目 1', '項目 2', '次'], {
+    oldKinds: ['li', 'p', 'h2'], newKinds: ['li', 'li', 'h2']
+  });
+  check('種類が違えば組にせず、追加と削除に分ける',
+    kinds.blocks[1]?.type === 'added' && JSON.stringify([...kinds.removed]) === JSON.stringify([[2, ['補足の段落']]]),
+    JSON.stringify({ blocks: kinds.blocks, removed: [...kinds.removed] }));
+
+  const empty = RP.diff.diffBlocks([], ['新しい段落']);
+  check('基準が空なら全部が追加', empty.blocks[0]?.type === 'added');
+  const same = RP.diff.diffBlocks(['a', 'b'], ['a', 'b']);
+  check('同じなら差分なし', same.blocks.every((b) => b === null) && same.removed.size === 0);
+}
 
 section('util');
 check('docKey はクエリとハッシュを落とす',

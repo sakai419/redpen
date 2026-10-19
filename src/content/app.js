@@ -28,7 +28,9 @@
       doc: null,
       activeId: null,
       pendingRange: null,
-      editingId: null
+      editingId: null,
+      // 差分の基準と、今の版との差分
+      diff: { base: null, count: 0, cursor: -1, visible: true }
     };
 
     const ui = RP.sidebar.create({
@@ -48,7 +50,9 @@
         state.editingId = null;
       },
       onSubmitComment: submitComment,
-      onCopy: copyExport
+      onCopy: copyExport,
+      onDiffStep: stepDiff,
+      onDiffToggle: toggleDiff
     });
 
     state.doc =
@@ -60,8 +64,10 @@
     state.doc.mode = cfg.mode;
 
     paintAll();
+    state.diff.base = await RP.store.loadBase(cfg.key);
+    paintDiff();
     refresh();
-    if (state.doc.comments.length > 0) ui.setOpen(true);
+    if (state.doc.comments.length > 0 || state.diff.count > 0) ui.setOpen(true);
 
     /* ---------- 描画 ---------- */
 
@@ -94,12 +100,22 @@
       if (changed) RP.store.saveDoc(state.doc);
     }
 
+    function paintDiff() {
+      const d = state.diff;
+      d.cursor = -1;
+      d.count = d.base ? RP.diffview.paint(state.root, d.base) : 0;
+    }
+
     function refresh() {
+      const d = state.diff;
       ui.render({
         title: state.doc.title,
         path: state.doc.path,
         comments: state.doc.comments,
-        activeId: state.activeId
+        activeId: state.activeId,
+        diff: d.base
+          ? { savedAt: d.base.savedAt, count: d.count, cursor: d.cursor, visible: d.visible }
+          : null
       });
     }
 
@@ -253,6 +269,35 @@
       ui.toast(`コメントを ${n} 件削除しました`);
     }
 
+    /* ---------- 差分 ---------- */
+
+    function stepDiff(delta) {
+      const d = state.diff;
+      if (d.count === 0) return;
+      if (!d.visible) toggleDiff();
+      d.cursor = d.cursor < 0 && delta < 0 ? d.count - 1 : (d.cursor + delta + d.count) % d.count;
+      RP.diffview.scrollTo(state.root, d.cursor);
+      refresh();
+    }
+
+    function toggleDiff() {
+      state.diff.visible = !state.diff.visible;
+      document.documentElement.classList.toggle('rp-diff-hidden', !state.diff.visible);
+      refresh();
+    }
+
+    /** 書き出した時点の版を、次に開いたときの差分の基準にする */
+    async function saveBase() {
+      try {
+        state.diff.base = await RP.store.saveBase(cfg.key, RP.diffview.snapshot(state.root));
+      } catch {
+        // 容量超過などで保存できなくても、コピー自体は成功させる
+        return;
+      }
+      paintDiff();
+      refresh();
+    }
+
     /* ---------- エクスポート ---------- */
 
     async function copyExport(opts) {
@@ -262,6 +307,7 @@
         return;
       }
       const done = `${opts.style === 'json' ? 'JSON' : 'Markdown'} をコピーしました`;
+      saveBase();
       try {
         await navigator.clipboard.writeText(text);
         ui.toast(done);
@@ -346,6 +392,8 @@
     function teardown() {
       abort.abort();
       RP.marks.removeAll(state.root);
+      RP.diffview.clear(state.root);
+      document.documentElement.classList.remove('rp-diff-hidden');
       cfg.outline?.destroy();
       ui.destroy();
       if (RP.session === session) RP.session = null;

@@ -120,7 +120,7 @@ async function fetchSource(url, sender) {
   if (senderUrl && !sameDocument(url, senderUrl)) {
     throw new Error('開いているページと一致しません');
   }
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.text();
 }

@@ -33,6 +33,8 @@
   --rp-warn-soft: rgba(234, 179, 8, 0.14);
   --rp-ask: #7c3aed;
   --rp-ask-soft: rgba(124, 58, 237, 0.09);
+  --rp-diff: #1a7f37;
+  --rp-diff-soft: rgba(46, 160, 67, 0.12);
   --rp-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px rgba(16, 24, 40, .12);
   --rp-radius: 10px;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
@@ -57,6 +59,8 @@
     --rp-warn-soft: rgba(250, 204, 21, 0.12);
     --rp-ask: #b197fc;
     --rp-ask-soft: rgba(177, 151, 252, 0.13);
+    --rp-diff: #3fb950;
+    --rp-diff-soft: rgba(63, 185, 80, 0.13);
     --rp-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.55);
   }
 }
@@ -116,6 +120,16 @@
 .bar .prune:hover { color: var(--rp-warn); border-color: var(--rp-warn); }
 .bar .clear[data-confirm="1"] { color: #d1242f; border-color: #d1242f; }
 .mini[hidden] { display: none; }
+
+/* 基準の版（最後にコピーした版）との差分 */
+.diffbar { padding: 7px 10px 7px 14px; border-bottom: 1px solid var(--rp-border); background: var(--rp-diff-soft); }
+.diffbar[hidden] { display: none; }
+.diff-row { display: flex; align-items: center; gap: 6px; }
+.diff-label { flex: 1; font-size: 12.5px; color: var(--rp-text-sub); font-variant-numeric: tabular-nums; }
+.diff-label strong { color: var(--rp-diff); font-weight: 650; }
+.diff-base { font-size: 11px; color: var(--rp-text-mute); margin-top: 1px; }
+.diffbar .mini { flex: none; }
+.diffbar .mini.step { width: 24px; padding: 2px 0; text-align: center; }
 
 .doc-comment {
   margin: 8px 8px 0; flex: none;
@@ -281,6 +295,15 @@
     <button class="mini danger clear" id="clearBtn"
             title="この文書のコメントをすべて削除" hidden>全件削除</button>
   </div>
+  <div class="diffbar" id="diffBar" hidden>
+    <div class="diff-row">
+      <span class="diff-label" id="diffLabel"></span>
+      <button class="mini step" id="diffPrev" title="前の変更箇所へ">↑</button>
+      <button class="mini step" id="diffNext" title="次の変更箇所へ">↓</button>
+      <button class="mini" id="diffToggle" title="本文の差分ハイライトを切り替える"></button>
+    </div>
+    <div class="diff-base" id="diffBase"></div>
+  </div>
   <button class="doc-comment" id="docCommentBtn"
           title="範囲を選ばずに、文書全体に対するコメントを書く">＋ 文書全体へのコメント</button>
   <div class="list" id="list"></div>
@@ -351,7 +374,13 @@
       toast: $('toast'),
       optStyle: $('optStyle'),
       pruneBtn: $('pruneBtn'),
-      clearBtn: $('clearBtn')
+      clearBtn: $('clearBtn'),
+      diffBar: $('diffBar'),
+      diffLabel: $('diffLabel'),
+      diffBase: $('diffBase'),
+      diffPrev: $('diffPrev'),
+      diffNext: $('diffNext'),
+      diffToggle: $('diffToggle')
     };
 
     let isOpen = false;
@@ -484,6 +513,8 @@
       el.clearBtn.hidden = all.length === 0;
       if (el.clearBtn.hidden && clearTimer) resetClear();
 
+      renderDiff(state.diff);
+
       el.list.textContent = '';
 
       if (all.length === 0) {
@@ -496,6 +527,24 @@
       }
 
       for (const c of all) el.list.appendChild(renderCard(c, state.activeId));
+    }
+
+    function renderDiff(diff) {
+      el.diffBar.hidden = !diff;
+      if (!diff) return;
+      const { count, cursor, visible } = diff;
+      el.diffLabel.textContent = '';
+      if (count > 0) {
+        const strong = document.createElement('strong');
+        strong.textContent = `差分 ${count} 箇所`;
+        el.diffLabel.appendChild(strong);
+        if (cursor >= 0) el.diffLabel.append(`  ${cursor + 1} / ${count}`);
+      } else {
+        el.diffLabel.textContent = '変更なし';
+      }
+      el.diffBase.textContent = `基準: ${util.formatTime(diff.savedAt)} にコピーした版`;
+      el.diffPrev.hidden = el.diffNext.hidden = el.diffToggle.hidden = count === 0;
+      el.diffToggle.textContent = visible ? '隠す' : '表示';
     }
 
     function renderCard(c, activeId) {
@@ -585,6 +634,10 @@
       handlers.onDocumentComment?.(el.docCommentBtn.getBoundingClientRect()));
 
     el.pruneBtn.addEventListener('click', () => handlers.onDeleteMissing?.());
+
+    el.diffPrev.addEventListener('click', () => handlers.onDiffStep?.(-1));
+    el.diffNext.addEventListener('click', () => handlers.onDiffStep?.(1));
+    el.diffToggle.addEventListener('click', () => handlers.onDiffToggle?.());
 
     el.clearBtn.addEventListener('click', () => {
       if (el.clearBtn.dataset.confirm !== '1') {
