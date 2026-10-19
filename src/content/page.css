@@ -84,6 +84,72 @@ tspan.rp-hl {
 tspan.rp-hl:hover { stroke: var(--rp-c-mark-hover, rgba(250, 204, 21, 0.58)); }
 tspan.rp-hl.rp-hl-active { stroke: var(--rp-c-mark-active, rgba(250, 204, 21, 0.78)); }
 
+/* ---------- 基準の版との差分 ---------- */
+
+/* 本文の要素に変数を足さないよう、差分の要素自身に閉じて宣言する */
+.rp-diff-ins,
+.rp-diff-del,
+.rp-diff-gone {
+  --rp-c-ins: rgba(46, 160, 67, 0.2);
+  --rp-c-ins-line: rgba(26, 127, 55, 0.55);
+  --rp-c-del: #cf222e;
+}
+@media (prefers-color-scheme: dark) {
+  .rp-diff-ins,
+  .rp-diff-del,
+  .rp-diff-gone {
+    --rp-c-ins: rgba(63, 185, 80, 0.22);
+    --rp-c-ins-line: rgba(63, 185, 80, 0.6);
+    --rp-c-del: #ff7b72;
+  }
+}
+
+mark.rp-diff-ins {
+  background: var(--rp-c-ins);
+  color: inherit;
+  box-shadow: inset 0 -2px 0 var(--rp-c-ins-line);
+  border-radius: 2px;
+  padding: 0;
+}
+tspan.rp-diff-ins {
+  paint-order: stroke;
+  stroke: var(--rp-c-ins);
+  stroke-width: 0.4em;
+  stroke-linejoin: round;
+}
+
+/* 文字が消えた場所。何が消えたかは出さず、細い縦線だけを置く */
+.rp-diff-del {
+  display: inline-block;
+  width: 3px;
+  height: 1.1em;
+  margin: 0 2px;
+  vertical-align: -0.15em;
+  background: var(--rp-c-del);
+  border-radius: 2px;
+  user-select: none;
+}
+/* 段落・項目が丸ごと消えた場所。ブロックの間に細い横線を引く */
+.rp-diff-gone {
+  display: block;
+  height: 0;
+  margin: 0.35em 0;
+  border-top: 2px dashed var(--rp-c-del);
+  user-select: none;
+}
+
+@keyframes rp-diff-flash {
+  0%, 100% { outline: 2px solid rgba(46, 160, 67, 0); }
+  35% { outline: 2px solid rgba(46, 160, 67, 0.7); }
+}
+.rp-diff-flash { animation: rp-diff-flash 1.1s ease-out; outline-offset: 2px; }
+
+/* パネルの「隠す」 */
+.rp-diff-hidden mark.rp-diff-ins { background: none; box-shadow: none; }
+.rp-diff-hidden tspan.rp-diff-ins { stroke: none; }
+.rp-diff-hidden .rp-diff-del,
+.rp-diff-hidden .rp-diff-gone { display: none; }
+
 /* ---------- Markdown ビュー ---------- */
 
 body.rp-md-page {

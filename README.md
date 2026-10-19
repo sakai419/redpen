@@ -148,6 +148,35 @@ Markdown はこちらでレンダリングします。左に見出しの目次�
 
 質問として書いたものは、位置の頭に `[質問]` が付きます。指示には何も付きません。
 
+### 5. 直った箇所を確かめる
+
+パネルの **コピー** を押すと、その時点の本文が「差分の基準」として保存されます。
+AI がファイルを書き換えたら、ページを**リロード**するだけで、基準から変わった場所が本文に出ます。
+出すのは場所だけで、変わる前の中身は表示しません。
+
+| 表示 | 意味 |
+|---|---|
+| 緑の背景 | 足された・書き換わった文言 |
+| 赤い縦線 | 文字が消えただけの場所 |
+| 赤い破線 | 段落・項目が丸ごと消えた場所 |
+
+パネルの緑の行に変更箇所の数が出ます。**↑ / ↓** で前後の箇所へ移動し、**隠す** で一時的に消せます。
+次のコメントを書いてもう一度 **コピー** すると、基準がその版に更新されます。
+
+- 比べるのはレンダリング後の文字で、コメントとは紐付けていません
+- 図（SVG）の中の文字が消えたときは、図の手前に破線を出します
+- ポップアップの **コピー** では基準は更新されません（画面の本文を読めないため）
+- ビューアにファイルをドラッグ＆ドロップして開いた文書は、リロードしても読み直せないので差分が出ません
+
+試すときは同梱の例を使います。
+
+```bash
+npm run diff:reset    # 修正前の版を examples/diff/report.md と report.html に置く
+# Chrome で report.md（または report.html）を開き、コメントを 1 件付けてパネルの「コピー」を押す
+npm run diff:revise   # 修正後の版で上書きする（AI が直した状態の代わり）
+# ページをリロードすると差分が出る
+```
+
 ```markdown
 ## [質問] L20 — 3. 提案する仕様 > 3.1 対応フォーマット
 
@@ -215,6 +244,7 @@ src/
     util.js              共通ユーティリティ、URL とドキュメントキーの判定
     store.js             chrome.storage.local の永続化レイヤ
     exporter.js          書き出し（位置 + 引用 + コメントだけを組む）
+    diff.js              2 つの版のブロック・文字単位の差分
   content/
     detect.js            対象ページかどうかの判定
     markdown.js          Markdown → HTML（原文行番号を data-rp-line に焼き込む）
@@ -222,6 +252,7 @@ src/
     outline.js           見出しの目次と現在位置
     anchor.js            選択範囲 ⇄ 保存可能なアンカー
     marks.js             コメント用 mark 要素の挿入・除去
+    diffview.js          差分の基準の取得と、本文への差分の描画
     sidebar.js           レビューパネル（Shadow DOM）
     app.js               1 文書分のレビューセッション
     main.js              content script のエントリ
@@ -241,6 +272,7 @@ npm run test:browser # 本物の Chrome で見た目と操作を検証
 npm run shots       # 上に加えてスクリーンショットを .shots/ に保存
 npm run icons       # icons/*.png を再生成
 npm run theme       # src/content/hljs-theme.css を再生成
+npm run diff:reset  # 差分ハイライト確認用の例を修正前の版にする（diff:revise で修正後）
 ```
 
 `dev/preview.html` を Chrome で開くと、拡張として読み込まずに UI を確認できます
@@ -250,11 +282,11 @@ npm run theme       # src/content/hljs-theme.css を再生成
 
 | スクリプト | 見るもの |
 |---|---|
-| `test.js` | 行番号の焼き込み、記法の除去、書き出しの内容と切り詰め |
-| `test-dom.js` | jsdom 上でのアンカー生成・再解決・ハイライト挿抜・目次 |
+| `test.js` | 行番号の焼き込み、記法の除去、書き出しの内容と切り詰め、差分の計算 |
+| `test-dom.js` | jsdom 上でのアンカー生成・再解決・ハイライト挿抜・目次・差分の描画 |
 | `test-html.js` | HTML 原文への行番号の差し込み、木の突き合わせ、選択位置 → 行番号 |
 | `test-smoke.js` | `dev/preview.html` を丸ごと起動し、選択 → コメント → 保存 → 書き出しを通す |
-| `test-browser.js` | 本物の Chrome。レイアウト・CSS 変数・ツールチップ位置・狭い画面・オンオフの往復 |
+| `test-browser.js` | 本物の Chrome。レイアウト・CSS 変数・ツールチップ位置・狭い画面・オンオフの往復・差分のリロード |
 
 `test-browser.js` は `examples/` を HTTP で配信し（`.md` は `text/plain`、`.html` は `text/html`）、
 content script と同じファイル一式を同じ順序で流し込みます。Chrome 137 以降は

@@ -42,7 +42,8 @@
   }
 
   async function fetchSource(url) {
-    const res = await fetch(url);
+    // localhost で古い版が返ると差分が出ないので、キャッシュを使わない
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.text();
   }

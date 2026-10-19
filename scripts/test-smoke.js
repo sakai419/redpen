@@ -132,6 +132,22 @@ virtualConsole.on('error', (...args) => errors.push(args.join(' ')));
   })(), copied.at(-1)?.slice(0, 60));
   optStyle.value = 'quote';
 
+  console.log('\n差分の基準');
+  await new Promise((r) => setTimeout(r, 60));
+  const baseKey = 'base:file:///Users/example/reports/sample-report.md';
+  const savedBase = (await window.chrome.storage.local.get(baseKey))[baseKey];
+  check('コピーした版が差分の基準として保存される',
+    Array.isArray(savedBase?.blocks) && savedBase.blocks.length > 10 && savedBase.kinds?.length === savedBase.blocks.length,
+    JSON.stringify(savedBase)?.slice(0, 120));
+  check('基準にコメントのハイライトの有無は影響しない',
+    savedBase?.blocks.some((t) => t.includes('本システムは常時オンラインであることを前提とする。')));
+  const diffBar = shadow.getElementById('diffBar');
+  check('パネルに差分の行が出る', diffBar && !diffBar.hidden);
+  check('コピー直後は「変更なし」', shadow.getElementById('diffLabel').textContent === '変更なし',
+    shadow.getElementById('diffLabel').textContent);
+  check('移動ボタンは引っ込む', shadow.getElementById('diffNext').hidden);
+  check('本文に差分の印は付かない', article.querySelector('.rp-diff-ins, .rp-diff-del, .rp-diff-gone') === null);
+
   console.log('\n文書全体へのコメント');
   window.getSelection().removeAllRanges();
   const docCommentBtn = shadow.getElementById('docCommentBtn');

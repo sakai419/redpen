@@ -30,10 +30,12 @@ globalThis.DOMPurify = require(path.join(ROOT, 'src/vendor/purify.min.js'))(wind
 for (const f of [
   'src/lib/util.js',
   'src/lib/exporter.js',
+  'src/lib/diff.js',
   'src/content/markdown.js',
   'src/content/outline.js',
   'src/content/anchor.js',
-  'src/content/marks.js'
+  'src/content/marks.js',
+  'src/content/diffview.js'
 ]) {
   vm.runInThisContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f });
 }
@@ -230,6 +232,78 @@ const dupResolved = RP.anchor.resolve(dupAnchor, dupCtx);
 check('同じ語が複数あっても文脈で 2 つ目に戻る',
   dupResolved && RP.anchor.offsetOf(dupArticle, dupResolved.startContainer, dupResolved.startOffset) === secondIdx);
 
+/* ---------- 基準の版との差分 ---------- */
+
+section('差分ハイライト（Markdown）');
+{
+  const diffArticle = document.createElement('article');
+  document.body.appendChild(diffArticle);
+  RP.markdown.render(fs.readFileSync(path.join(ROOT, 'examples/diff/report.before.md'), 'utf8'), diffArticle);
+  const base = RP.diffview.snapshot(diffArticle);
+  check('基準はブロックごとのテキストと要素名', base.blocks.length === base.kinds.length && base.kinds.includes('li'),
+    JSON.stringify(base.kinds));
+
+  const afterLines = RP.markdown.render(
+    fs.readFileSync(path.join(ROOT, 'examples/diff/report.after.md'), 'utf8'), diffArticle);
+  const diffCtx = { root: diffArticle, mode: 'markdown', sourceLines: afterLines };
+  // 差分を描く前にコメントを 1 件付けておき、差分と共存できるかも見る
+  const needle = '根拠が見つからない場合は回答せず';
+  const t0 = RP.anchor.fullText(diffArticle);
+  const i0 = t0.indexOf(needle);
+  const commentAnchor = RP.anchor.create(RP.anchor.rangeFromOffsets(diffArticle, i0, i0 + needle.length), diffCtx);
+  RP.marks.apply(diffArticle, RP.anchor.resolve(commentAnchor, diffCtx), 'c-diff');
+
+  const textBefore = RP.anchor.fullText(diffArticle);
+  const htmlBefore = diffArticle.innerHTML;
+  const count = RP.diffview.paint(diffArticle, base);
+  const ins = [...diffArticle.querySelectorAll('mark.rp-diff-ins')].map((m) => m.textContent);
+  const dels = [...diffArticle.querySelectorAll('.rp-diff-del')];
+  const gones = [...diffArticle.querySelectorAll('.rp-diff-gone')];
+
+  check('隣り合う変更を 1 箇所に数える', count === 8, `got ${count}`);
+  check('足された文言を塗る', ins.includes('（2026-10-18 改訂）'), JSON.stringify(ins));
+  // コメントのハイライトと重なるところは mark が分かれるので、段落ごとにつないで見る
+  const insIn = (needle) => {
+    const p = [...diffArticle.querySelectorAll('p')].find((e) => e.textContent.includes(needle));
+    return [...(p?.querySelectorAll('mark.rp-diff-ins') || [])].map((m) => m.textContent).join('');
+  };
+  const paraOf = (text) => [...diffArticle.querySelectorAll('p, td')].find((e) => e.textContent.includes(text));
+  check('書き換えは足された文言だけを塗り、消えた場所の印は置かない',
+    insIn(needle) === 'は回答せず、担当者に引き継ぐ' && !paraOf(needle).querySelector('.rp-diff-del'),
+    insIn(needle));
+  check('表のセルは同じセルを塗る',
+    ins.includes('毎日（夜間バッチ）') && !paraOf('毎日').querySelector('.rp-diff-del'), JSON.stringify(ins));
+  check('足されたリスト項目を塗る', ins.includes('夜間・休日の問い合わせには、翌営業日まで回答できない'));
+  check('丸ごと消えた段落は、あった場所（リストと次の見出しの間）に印を置く',
+    gones.length === 1 && gones[0].previousElementSibling?.localName === 'ul' &&
+      gones[0].nextElementSibling?.localName === 'h2',
+    gones.map((g) => g.outerHTML).join());
+  check('文字が消えただけの場所にも印を置く',
+    dels.length === 1 && paraOf('全社に展開')?.contains(dels[0]), dels.map((d) => d.parentNode.textContent).join());
+  check('変わる前の中身はどこにも出さない',
+    [...dels, ...gones].every((e) => !e.textContent && !e.title.includes('推奨') && e.attributes.length === 4) &&
+      !diffArticle.innerHTML.includes('アンケート') && !diffArticle.innerHTML.includes('月 1 回'),
+    [...dels, ...gones].map((e) => e.outerHTML).join());
+  check('印は本文のテキストを増やさない（コメントの貼り直しがずれない）',
+    RP.anchor.fullText(diffArticle) === textBefore);
+  check('差分を描いた後もコメントを貼り直せる',
+    RP.anchor.resolve(commentAnchor, diffCtx)?.toString() === needle);
+  check('コメントのハイライトは残る', RP.marks.marksOf(diffArticle, 'c-diff').length > 0);
+  check('変更箇所ごとに番号が振られる',
+    diffArticle.querySelector('[data-rp-hunk="0"]') !== null &&
+      diffArticle.querySelector('[data-rp-hunk="7"]') !== null &&
+      diffArticle.querySelector('[data-rp-hunk="8"]') === null);
+
+  RP.diffview.clear(diffArticle);
+  check('外すと元の DOM に戻る', diffArticle.innerHTML === htmlBefore);
+
+  check('基準と同じなら何も描かない', (() => {
+    const same = RP.diffview.snapshot(diffArticle);
+    return RP.diffview.paint(diffArticle, same) === 0 && diffArticle.querySelector('[data-rp-hunk]') === null;
+  })());
+  diffArticle.remove();
+}
+
 /* ---------- HTML モード ---------- */
 
 section('HTML モード');
@@ -261,6 +335,30 @@ const htmlMd = RP.exporter.build(htmlDoc, {});
 check('HTML の書き出しは見出しで位置を示す', htmlMd.startsWith('## 3. 留意点'), htmlMd);
 check('HTML の書き出しにも枠が付かない',
   !htmlMd.includes('レビューコメント') && !htmlMd.includes('---'), htmlMd);
+
+section('差分ハイライト（HTML）');
+{
+  const load = (name) => {
+    const d = new JSDOM(fs.readFileSync(path.join(ROOT, 'examples/diff', name), 'utf8'), { url: 'file:///tmp/report.html' });
+    globalThis.document = d.window.document;
+    globalThis.window = d.window;
+    return d.window.document.querySelector('main');
+  };
+  const base = RP.diffview.snapshot(load('report.before.html'));
+  const root = load('report.after.html');
+  const count = RP.diffview.paint(root, base);
+  const ins = [...root.querySelectorAll('.rp-diff-ins')].map((m) => m.textContent);
+  check('HTML でも差分を出す', count === 6, `got ${count}`);
+  check('HTML の改行・インデントは塗らない', ins.every((t) => !/^\s*\n|\n\s*$/.test(t)), JSON.stringify(ins));
+  check('インラインの code をまたいでも塗れる', ins.includes('Retry-After'), JSON.stringify(ins));
+  check('SVG の文字は tspan で塗る',
+    [...root.querySelectorAll('tspan.rp-diff-ins')].some((t) => t.textContent === 'API ゲートウェイ'));
+  check('SVG の中には消えた場所の印を入れない（SVG の手前に出す）',
+    root.querySelector('svg .rp-diff-del, svg .rp-diff-gone') === null &&
+      root.querySelector('svg').previousElementSibling?.classList.contains('rp-diff-gone'));
+  check('HTML でも変わる前の中身は出さない',
+    !root.innerHTML.includes('ロードバランサ') && !root.innerHTML.includes('プロセスのメモリ'));
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

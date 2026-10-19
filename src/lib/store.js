@@ -3,6 +3,7 @@
  * レイアウト:
  *   doc:<docKey>  … 1 ドキュメント分のコメント集合
  *   index         … ポップアップ用の一覧メタデータ
+ *   base:<docKey> … 差分の基準（最後にコピーした時点の各ブロックのテキスト）
  */
 (function () {
   'use strict';
@@ -11,6 +12,7 @@
 
   const DOC_PREFIX = 'doc:';
   const INDEX_KEY = 'index';
+  const BASE_PREFIX = 'base:';
 
   function emptyDoc(key, meta = {}) {
     const now = Date.now();
@@ -70,8 +72,19 @@
     return Object.values(index).sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
+  async function loadBase(key) {
+    const res = await get(BASE_PREFIX + key);
+    return res[BASE_PREFIX + key] || null;
+  }
+
+  async function saveBase(key, snapshot) {
+    const base = { ...snapshot, savedAt: Date.now() };
+    await chrome.storage.local.set({ [BASE_PREFIX + key]: base });
+    return base;
+  }
+
   async function removeDoc(key) {
-    await chrome.storage.local.remove(DOC_PREFIX + key);
+    await chrome.storage.local.remove([DOC_PREFIX + key, BASE_PREFIX + key]);
     const res = await get(INDEX_KEY);
     const index = res[INDEX_KEY] || {};
     delete index[key];
@@ -81,10 +94,13 @@
   RP.store = {
     DOC_PREFIX,
     INDEX_KEY,
+    BASE_PREFIX,
     emptyDoc,
     loadDoc,
     saveDoc,
     listDocs,
+    loadBase,
+    saveBase,
     removeDoc
   };
 })();

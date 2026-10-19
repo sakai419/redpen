@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>API レート制限の設計メモ</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; line-height: 1.8; color: #1f2328; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #d0d7de; padding: 4px 10px; }
+  pre { background: #f6f8fa; padding: 12px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>API レート制限の設計メモ</h1>
+  <p>作成: 設計エージェント / 2026-10-01</p>
+
+  <h2>1. 背景</h2>
+  <p>
+    一部の顧客が短時間に大量のリクエストを送り、他の顧客の応答が遅くなる事象が起きている。
+    API 全体にレート制限を入れて、特定の顧客が資源を占有しないようにする。
+  </p>
+
+  <h2>2. 方式</h2>
+  <p>トークンバケット方式を採用する。顧客ごとにバケットを持ち、リクエストごとにトークンを 1 つ消費する。</p>
+  <table>
+    <tr><th>プラン</th><th>上限（毎分）</th></tr>
+    <tr><td>Free</td><td>60</td></tr>
+    <tr><td>Pro</td><td>600</td></tr>
+  </table>
+
+  <svg width="720" height="320" viewBox="0 0 720 320" role="img" aria-label="リクエストの流れ"
+       font-family="-apple-system, 'Hiragino Sans', sans-serif" font-size="13" fill="#1f2328">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#59636e"/>
+      </marker>
+    </defs>
+    <text x="16" y="24" font-size="14" font-weight="600">図 1　リクエストの流れ</text>
+
+    <!-- クライアント -->
+    <rect x="20" y="122" width="120" height="56" rx="8" fill="#f6f8fa" stroke="#59636e"/>
+    <text x="80" y="155" text-anchor="middle">クライアント</text>
+
+    <!-- 振り分け -->
+    <rect x="210" y="122" width="150" height="56" rx="8" fill="#f6f8fa" stroke="#59636e"/>
+    <text x="285" y="155" text-anchor="middle">ロードバランサ</text>
+    <line x1="140" y1="150" x2="208" y2="150" stroke="#59636e" marker-end="url(#arrow)"/>
+    <text x="174" y="140" text-anchor="middle" font-size="11" fill="#59636e">HTTPS</text>
+
+    <!-- API サーバー -->
+    <rect x="470" y="56" width="200" height="70" rx="8" fill="#ffffff" stroke="#59636e"/>
+    <text x="570" y="86" text-anchor="middle" font-weight="600">API サーバー #1</text>
+    <text x="570" y="108" text-anchor="middle" font-size="11" fill="#59636e">カウンタ: プロセスのメモリ</text>
+    <rect x="470" y="174" width="200" height="70" rx="8" fill="#ffffff" stroke="#59636e"/>
+    <text x="570" y="204" text-anchor="middle" font-weight="600">API サーバー #2</text>
+    <text x="570" y="226" text-anchor="middle" font-size="11" fill="#59636e">カウンタ: プロセスのメモリ</text>
+    <line x1="360" y1="140" x2="468" y2="95" stroke="#59636e" marker-end="url(#arrow)"/>
+    <line x1="360" y1="160" x2="468" y2="205" stroke="#59636e" marker-end="url(#arrow)"/>
+    <text x="410" y="152" text-anchor="middle" font-size="11" fill="#59636e">振り分け</text>
+
+    <text x="16" y="300" font-size="12" fill="#59636e">※ 上限を超えたリクエストには 503 を返す</text>
+  </svg>
+
+  <h2>3. 留意点</h2>
+  <ul>
+    <li>レート制限のカウンタはアプリケーションのメモリ上に保持する。</li>
+    <li>上限を超えたリクエストには 503 を返す。</li>
+  </ul>
+
+<pre><code>if bucket.tokens == 0:
+    return Response(status=503)
+bucket.tokens -= 1</code></pre>
+
+  <h2>4. 今後</h2>
+  <p>運用しながら上限値を調整する。</p>
+</main>
+</body>
+</html>
