@@ -226,6 +226,28 @@
 }
 .launcher.show { display: flex; }
 
+/* パネルを閉じている間、右端に残す入口 */
+.opener {
+  position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+  z-index: 2147483590;
+  writing-mode: vertical-rl;
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--rp-border); border-right: none; border-radius: 8px 0 0 8px;
+  background: var(--rp-bg); color: var(--rp-text-sub); box-shadow: var(--rp-shadow);
+  padding: 10px 5px; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: .08em;
+}
+.opener:hover { color: var(--rp-accent); border-color: var(--rp-accent); }
+.opener[hidden] { display: none; }
+.opener-count {
+  writing-mode: horizontal-tb;
+  min-width: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--rp-accent); color: #fff;
+  font-size: 10.5px; line-height: 18px; text-align: center; letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.opener-count[hidden] { display: none; }
+
 /* コメント入力 */
 .composer {
   position: fixed; z-index: 2147483635; width: 320px;
@@ -322,6 +344,7 @@
     </div>
   </div>
 </div>
+<button class="opener" id="opener" title="コメント一覧を開く (${TOGGLE_KEY})">コメント<span class="opener-count" id="openerCount" hidden></span></button>
 <button class="launcher" id="launcher">✎ コメント</button>
 <div class="composer" id="composer">
   <div class="composer-kind" id="composerKind" role="radiogroup" aria-label="コメントの種類">
@@ -366,6 +389,8 @@
       docPath: $('docPath'),
       nAll: $('nAll'),
       launcher: $('launcher'),
+      opener: $('opener'),
+      openerCount: $('openerCount'),
       composer: $('composer'),
       composerQuote: $('composerQuote'),
       composerKind: $('composerKind'),
@@ -391,6 +416,7 @@
     function setOpen(next) {
       isOpen = next;
       el.panel.classList.toggle('open', isOpen);
+      el.opener.hidden = isOpen;
       document.documentElement.style.transition = 'padding-right .18s cubic-bezier(.2,.8,.3,1)';
       document.documentElement.style.paddingRight = isOpen ? PANEL_WIDTH + 'px' : '';
       handlers.onToggle?.(isOpen);
@@ -505,6 +531,8 @@
 
       const all = RP.exporter.sortComments(state.comments);
       el.nAll.textContent = all.length;
+      el.openerCount.textContent = all.length;
+      el.openerCount.hidden = all.length === 0;
 
       const missing = all.filter((c) => c.anchor?.missing).length;
       el.pruneBtn.hidden = missing === 0;
@@ -625,6 +653,7 @@
 
     /* ---- イベント ---- */
     shadow.getElementById('closeBtn').addEventListener('click', () => setOpen(false));
+    el.opener.addEventListener('click', () => setOpen(true));
 
     const offBtn = shadow.getElementById('offBtn');
     offBtn.hidden = handlers.canDisable === false;

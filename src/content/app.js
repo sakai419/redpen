@@ -29,8 +29,8 @@
       activeId: null,
       pendingRange: null,
       editingId: null,
-      // 差分の基準と、今の版との差分
-      diff: { base: null, count: 0, cursor: -1, visible: true }
+      // 差分の基準と、今の版との差分。本文の印は求められるまで出さない
+      diff: { base: null, count: 0, cursor: -1, visible: false }
     };
 
     const ui = RP.sidebar.create({
@@ -64,6 +64,7 @@
     state.doc.mode = cfg.mode;
 
     paintAll();
+    document.documentElement.classList.add('rp-diff-hidden');
     state.diff.base = await RP.store.loadBase(cfg.key);
     paintDiff();
     refresh();
@@ -368,7 +369,7 @@
     /* パネル開閉のショートカットは chrome.commands 経由でも、ページ上の keydown でも届く。
      * commands が他の拡張と衝突して割り当てられない環境でも動くよう両方受けるが、
      * 二重に実行されないよう直近の同一コマンドは無視する。
-     * comment-selection は右クリックメニューから届く。 */
+     * comment-selection と open-sidebar は右クリックメニューから届く。 */
     const lastInvoked = new Map();
 
     function invokeCommand(name) {
@@ -377,6 +378,7 @@
       lastInvoked.set(name, now);
       if (name === 'comment-selection') openComposerForSelection();
       else if (name === 'toggle-sidebar') ui.setOpen(!ui.isOpen());
+      else if (name === 'open-sidebar') ui.setOpen(true);
     }
 
     document.addEventListener('keydown', (e) => {

@@ -340,6 +340,23 @@ async function selectLineIn(page, selector, needle) {
   await pressOptionR();
   await wait(300);
   check('Option+R で閉じる', !(await page.evaluate(() => window.RedPen.session.ui.isOpen())));
+  const tab = await box(page, '#opener', true);
+  const vw = await page.evaluate(() => innerWidth);
+  check('閉じている間は右端に入口が残る', tab?.visible && tab.x + tab.w >= vw - 2, JSON.stringify({ ...tab, vw }));
+  check('入口に件数が出る', await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('openerCount').textContent) === '1');
+  await shot('03g-panel-closed.png');
+  await page.evaluate(() =>
+    document.getElementById('redpen-root').shadowRoot.getElementById('opener').click());
+  await wait(300);
+  check('入口を押すと開く', await page.evaluate(() => window.RedPen.session.ui.isOpen()));
+  check('開いている間は入口を隠す', !(await box(page, '#opener', true))?.visible);
+  await pressOptionR();
+  await wait(300);
+  await page.evaluate(() => window.RedPen.session.handleCommand('open-sidebar'));
+  await wait(300);
+  check('右クリックメニューから開く', await page.evaluate(() => window.RedPen.session.ui.isOpen()));
+  await pressOptionR();
   await wait(300);
   await pressOptionR();
   await wait(300);
@@ -498,17 +515,25 @@ async function selectLineIn(page, selector, needle) {
     const label = await inPanel("return root.getElementById('diffLabel').textContent");
     check(`リロードすると差分を数える（${want} 箇所）`, label === `差分 ${want} 箇所`, label);
     check('差分があればパネルを開く', await inPanel("return root.querySelector('.panel').classList.contains('open')"));
+    const initial = await page3.evaluate(() => ({
+      bg: getComputedStyle(document.querySelector('.rp-diff-ins')).backgroundColor,
+      gone: getComputedStyle(document.querySelector('.rp-diff-gone')).display
+    }));
+    check('本文の印は最初は隠れている',
+      (initial.bg === 'rgba(0, 0, 0, 0)' || initial.bg === 'transparent') && initial.gone === 'none',
+      JSON.stringify(initial));
+    check('ボタンは「表示」', await inPanel("return root.getElementById('diffToggle').textContent") === '表示');
+
+    await inPanel("root.getElementById('diffNext').click()");
+    await wait(600);
     const insBg = await page3.$eval('.rp-diff-ins', (el) => getComputedStyle(el).backgroundColor);
-    check('足された文言に背景が付く', insBg !== 'rgba(0, 0, 0, 0)' && insBg !== 'transparent', insBg);
+    check('↓ で印が出て、足された文言に背景が付く', insBg !== 'rgba(0, 0, 0, 0)' && insBg !== 'transparent', insBg);
     const gone = await page3.$eval('.rp-diff-gone', (el) => {
       const r = el.getBoundingClientRect();
       return { w: r.width, text: el.textContent, before: getComputedStyle(el, '::before').content };
     });
     check('消えた場所に線が見え、消えた中身は出ない',
       gone.w > 100 && gone.text === '' && (gone.before === 'none' || gone.before === 'normal'), JSON.stringify(gone));
-
-    await inPanel("root.getElementById('diffNext').click()");
-    await wait(600);
     const step = await inPanel("return root.getElementById('diffLabel').textContent");
     check('↓ で 1 箇所目へ移動し、位置を出す', step.endsWith(`1 / ${want}`), step);
     const inView = await page3.evaluate(() => {

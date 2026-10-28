@@ -11,6 +11,7 @@ const util = globalThis.RedPen.util;
 const DOC_PATTERNS = ['file:///*', 'http://localhost/*', 'http://127.0.0.1/*'];
 const MENU_TOGGLE = 'rp-toggle';
 const MENU_COMMENT = 'rp-comment';
+const MENU_PANEL = 'rp-open-panel';
 const MENU_VIEWER = 'rp-open-viewer';
 
 /* ---------- タブごとの有効／無効 ----------
@@ -149,6 +150,12 @@ chrome.runtime.onInstalled.addListener(() => {
       documentUrlPatterns: [...DOC_PATTERNS, 'chrome-extension://*/*']
     });
     chrome.contextMenus.create({
+      id: MENU_PANEL,
+      title: 'redpen: コメント一覧を開く',
+      contexts: ['page'],
+      documentUrlPatterns: [...DOC_PATTERNS, 'chrome-extension://*/*']
+    });
+    chrome.contextMenus.create({
       id: MENU_VIEWER,
       title: 'redpen ビューアで開く',
       contexts: ['page', 'link'],
@@ -168,6 +175,7 @@ async function syncMenus(tabId) {
       title: enabled ? 'redpen をこのタブで無効にする' : 'redpen をこのタブで有効にする'
     });
     await chrome.contextMenus.update(MENU_COMMENT, { visible: enabled });
+    await chrome.contextMenus.update(MENU_PANEL, { visible: enabled });
     await chrome.contextMenus.update(MENU_VIEWER, { visible: enabled });
   } catch {
     /* メニューがまだ作られていない */
@@ -182,6 +190,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     sendToTab(tab.id, { type: enabled ? 'rp-disable' : 'rp-enable' });
   } else if (info.menuItemId === MENU_COMMENT) {
     sendToTab(tab.id, { type: 'rp-command', name: 'comment-selection' });
+  } else if (info.menuItemId === MENU_PANEL) {
+    sendToTab(tab.id, { type: 'rp-command', name: 'open-sidebar' });
   } else if (info.menuItemId === MENU_VIEWER) {
     const target = info.linkUrl || info.pageUrl || tab.url;
     if (target) chrome.tabs.update(tab.id, { url: util.viewerUrl(target) });
